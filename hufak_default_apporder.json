@@ -1,0 +1,49 @@
+{
+  "dashboard": {
+    "order": 0,
+    "app": "dashboard"
+  },
+  "snappymail": {
+    "order": 1,
+    "app": "snappymail"
+  },
+  "tables_application_1": {
+    "order": 2
+  },
+  "collectives": {
+    "order": 3,
+    "app": "collectives"
+  },
+  "calendar": {
+    "order": 4,
+    "app": "calendar"
+  },
+  "files": {
+    "order": 5,
+    "app": "files"
+  },
+  "contacts": {
+    "order": 6,
+    "app": "contacts"
+  },
+  "polls": {
+    "order": 7,
+    "app": "polls"
+  },
+  "tables": {
+    "order": 8,
+    "app": "tables"
+  },
+  "passwords": {
+    "order": 9,
+    "app": "passwords"
+  },
+  "mail": {
+    "order": 10,
+    "app": "mail"
+  },
+  "occweb": {
+    "order": 11,
+    "app": "occweb"
+  }
+}

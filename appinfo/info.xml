@@ -1,0 +1,26 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+	<id>hufak</id>
+	<name>Hufak</name>
+	<summary>Minimal React-based Nextcloud app for admin status check</summary>
+	<description>Shows whether the current user has administrator rights.</description>
+	<version>0.0.1</version>
+	<licence>agpl</licence>
+	<namespace>Hufak</namespace>
+	<category>tools</category>
+	<navigations>
+		<navigation>
+			<id>hufak</id>
+			<name>Hufak</name>
+			<route>hufak.page.index</route>
+			<icon>tool.svg</icon>
+			<order>50</order>
+			<type>link</type>
+			<role>all</role>
+		</navigation>
+	</navigations>
+	<author>K</author>
+	<dependencies>
+		<nextcloud min-version="32" max-version="32"/>
+	</dependencies>
+</info>

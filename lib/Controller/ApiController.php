@@ -503,10 +503,12 @@ class ApiController extends Controller {
 				'additionalaccounts',
 				$additionalAccountsLookupError,
 			);
-			$identities = $this->loadSnappymailStorageJson(
-				$primaryEmail,
-				'identities',
-				$identitiesLookupError,
+			$identities = $this->normalizeIdentityRecords(
+				$this->loadSnappymailStorageJson(
+					$primaryEmail,
+					'identities',
+					$identitiesLookupError,
+				),
 			);
 			$additionalAccountIdentitiesLookupErrors = [];
 			$additionalAccountIdentities = $this->loadAdditionalAccountIdentities(
@@ -753,6 +755,50 @@ class ApiController extends Controller {
 		}
 	}
 
+	private function normalizeIdentityRecords(?array $identities): ?array {
+		if ($identities === null || !is_array($identities)) {
+			return $identities;
+		}
+
+		$entries = [];
+		$isList = array_is_list($identities);
+		foreach ($identities as $key => $identity) {
+			$normalizedIdentity = $this->normalizeIdentityRecord($identity);
+			if (!is_array($normalizedIdentity)) {
+				continue;
+			}
+			if ($isList) {
+				$entries[] = $normalizedIdentity;
+			} else {
+				$entries[$key] = $normalizedIdentity;
+			}
+		}
+
+		return $entries;
+	}
+
+	private function normalizeIdentityRecord(mixed $identity): ?array {
+		if (!is_array($identity)) {
+			return null;
+		}
+
+		$signature = '';
+		if (array_key_exists('signature', $identity)) {
+			$signatureValue = $identity['signature'];
+			if (is_scalar($signatureValue)) {
+				$signature = (string)$signatureValue;
+			}
+		} elseif (array_key_exists('Signature', $identity)) {
+			$signatureValue = $identity['Signature'];
+			if (is_scalar($signatureValue)) {
+				$signature = (string)$signatureValue;
+			}
+		}
+
+		$identity['signature'] = $signature;
+		return $identity;
+	}
+
 	private function loadAdditionalAccountIdentities(
 		string $primaryEmail,
 		?array $additionalAccounts,
@@ -801,7 +847,7 @@ class ApiController extends Controller {
 				}
 				$decoded = json_decode($content, true);
 				if (is_array($decoded)) {
-					$results[$additionalAccount] = $decoded;
+					$results[$additionalAccount] = $this->normalizeIdentityRecords($decoded);
 				} else {
 					$lookupErrors[$additionalAccount] = sprintf('Invalid JSON in: %s', $path);
 				}

@@ -414,6 +414,103 @@ class ApiController extends Controller {
 	/**
 	 * @NoAdminRequired
 	 */
+	public function deleteAdditionalSnappymailAccount(): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse([
+				'message' => 'Admin permissions required',
+			], Http::STATUS_FORBIDDEN);
+		}
+
+		$uid = trim((string)$this->request->getParam('uid', ''));
+		$email = trim((string)$this->request->getParam('email', ''));
+		if ($uid === '' || !$this->userManager->userExists($uid)) {
+			return new DataResponse([
+				'message' => 'Unknown user',
+			], Http::STATUS_BAD_REQUEST);
+		}
+		if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+			return new DataResponse([
+				'message' => 'Invalid additional account email',
+			], Http::STATUS_BAD_REQUEST);
+		}
+
+		$primaryEmail = $this->config->getUserValue(
+			$uid,
+			'snappymail',
+			'snappymail-email',
+			'',
+		);
+		$path = $this->resolveSnappymailStoragePath($primaryEmail, 'additionalaccounts');
+		if ($path === null) {
+			return new DataResponse([
+				'message' => 'Additional accounts file not found for user',
+			], Http::STATUS_NOT_FOUND);
+		}
+
+		try {
+			$file = $this->rootFolder->get($path);
+			if (!$file instanceof File) {
+				return new DataResponse([
+					'message' => 'Additional accounts path is not a file',
+				], Http::STATUS_INTERNAL_SERVER_ERROR);
+			}
+
+			$content = (string)$file->getContent();
+			$decoded = json_decode($content, true);
+			if (!is_array($decoded)) {
+				return new DataResponse([
+					'message' => 'Additional accounts file does not contain valid JSON',
+				], Http::STATUS_INTERNAL_SERVER_ERROR);
+			}
+
+			$didRemove = false;
+			foreach ($decoded as $accountKey => $accountConfig) {
+				if (!is_array($accountConfig)) {
+					continue;
+				}
+				$entryEmail = isset($accountConfig['email']) && is_scalar($accountConfig['email'])
+					? trim((string)$accountConfig['email'])
+					: '';
+				if ($entryEmail === $email) {
+					unset($decoded[$accountKey]);
+					$didRemove = true;
+				}
+			}
+
+			if (!$didRemove) {
+				return new DataResponse([
+					'message' => 'Additional account not found in storage file',
+				], Http::STATUS_NOT_FOUND);
+			}
+
+			$encoded = json_encode(
+				$decoded,
+				JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES,
+			);
+			if ($encoded === false) {
+				return new DataResponse([
+					'message' => 'Failed to encode updated additional accounts JSON',
+				], Http::STATUS_INTERNAL_SERVER_ERROR);
+			}
+
+			$file->putContent($encoded . "\n");
+		} catch (\Throwable $exception) {
+			return new DataResponse([
+				'message' => 'Failed to update additional accounts file',
+				'error' => $exception->getMessage(),
+			], Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+
+		return new DataResponse([
+			'message' => 'Additional account deleted',
+			'uid' => $uid,
+			'email' => $email,
+		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
 	public function getSignatureTemplate(): DataResponse {
 		if (!$this->currentUserIsAdmin()) {
 			return new DataResponse([
@@ -710,6 +807,33 @@ class ApiController extends Controller {
 		string $fileName,
 		?string &$error = null,
 	): ?array {
+		$candidatePath = $this->resolveSnappymailStoragePath($primaryEmail, $fileName);
+		if ($candidatePath === null) {
+			return null;
+		}
+
+		try {
+			if (!$this->rootFolder->nodeExists($candidatePath)) {
+				$error = sprintf('Path does not exist: %s', $candidatePath);
+				return null;
+			}
+			$file = $this->rootFolder->get($candidatePath);
+			if (!$file instanceof File) {
+				return null;
+			}
+			$content = (string)$file->getContent();
+			if (trim($content) === '') {
+				return null;
+			}
+			$decoded = json_decode($content, true);
+			return is_array($decoded) ? $decoded : null;
+		} catch (\Throwable $exception) {
+			$error = sprintf('Failed to load %s: %s', $candidatePath, $exception->getMessage());
+			return null;
+		}
+	}
+
+	private function resolveSnappymailStoragePath(string $primaryEmail, string $fileName): ?string {
 		$email = trim($primaryEmail);
 		if ($email === '' || !str_contains($email, '@')) {
 			return null;
@@ -722,37 +846,12 @@ class ApiController extends Controller {
 			return null;
 		}
 
-		$candidatePaths = [
-			'appdata_snappymail/_data_/_default_/storage/' . $domain . '/' . $prefix . '/' . $fileName,
-		];
-
-		try {
-			$path = null;
-			foreach ($candidatePaths as $candidatePath) {
-				if ($this->rootFolder->nodeExists($candidatePath)) {
-					$path = $candidatePath;
-					break;
-				}
-			}
-
-			if ($path === null) {
-				$error = sprintf('Path does not exist: %s', $candidatePaths[0]);
-				return null;
-			}
-			$file = $this->rootFolder->get($path);
-			if (!$file instanceof File) {
-				return null;
-			}
-			$content = (string)$file->getContent();
-			if (trim($content) === '') {
-				return null;
-			}
-			$decoded = json_decode($content, true);
-			return is_array($decoded) ? $decoded : null;
-		} catch (\Throwable $exception) {
-			$error = sprintf('Failed to load %s: %s', $path, $exception->getMessage());
-			return null;
-		}
+		return 'appdata_snappymail/_data_/_default_/storage/'
+			. $domain
+			. '/'
+			. $prefix
+			. '/'
+			. $fileName;
 	}
 
 	private function normalizeIdentityRecords(?array $identities): ?array {

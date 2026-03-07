@@ -1,4 +1,4 @@
-function formatTimeSince(timestampSeconds) {
+function formatTimeSince(timestampSeconds: number | string | null | undefined): string {
 	const ts = Number(timestampSeconds);
 	if (!Number.isFinite(ts) || ts <= 0) {
 		return 'never';
@@ -27,7 +27,7 @@ function formatTimeSince(timestampSeconds) {
 	return 'just now';
 }
 
-function isInactiveOverMonth(timestampSeconds) {
+function isInactiveOverMonth(timestampSeconds: number | string | null | undefined): boolean {
 	const ts = Number(timestampSeconds);
 	if (!Number.isFinite(ts) || ts <= 0) {
 		return true;

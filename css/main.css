@@ -1,26 +1,186 @@
 #content,
-#content-vue,
-#app-content,
-#app-content-vue,
-#app-content-wrapper {
+#content-vue {
 	width: 100% !important;
 	max-width: none !important;
 	min-width: 0 !important;
+	padding: 0 !important;
+}
+
+#content #hufak-root {
+	height: calc(100vh - var(--header-height)) !important;
+	min-height: calc(100vh - var(--header-height)) !important;
+	width: 100% !important;
+	max-width: none !important;
+	min-width: 0 !important;
+	display: block !important;
+	box-sizing: border-box !important;
+	overflow: hidden !important;
+}
+
+#hufak-root .hufak-admin-shell {
+	display: grid !important;
+	grid-template-columns: 300px minmax(0, 1fr) !important;
+	width: 100% !important;
+	min-width: 0 !important;
+	height: 100% !important;
+	min-height: 0 !important;
+	align-items: stretch !important;
+}
+
+#hufak-root #app-navigation {
+	--color-text-maxcontrast: var(--color-text-maxcontrast-background-blur, var(--color-main-text));
+	grid-column: 1 !important;
+	width: 300px !important;
+	min-width: 300px !important;
+	max-width: 300px !important;
+	overflow-y: auto !important;
+	height: 100% !important;
+	box-sizing: border-box !important;
+	background: var(--color-main-background-blur) !important;
+	backdrop-filter: var(--filter-background-blur) !important;
+	-webkit-backdrop-filter: var(--filter-background-blur) !important;
+	position: sticky !important;
+	display: flex !important;
+	flex-direction: column !important;
+	flex-grow: 0 !important;
+	flex-shrink: 0 !important;
+	user-select: none !important;
+}
+
+#app-navigation #hufak-navigation {
+	list-style: none;
+	margin: 0;
+	position: relative;
+	height: 100%;
+	width: 100%;
+	overflow-x: hidden;
+	overflow-y: auto;
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	padding: calc(var(--default-grid-baseline) * 2);
+	padding-bottom: 0;
+}
+
+#app-navigation #hufak-navigation > li.hufak-navigation-group-label {
+	display: block;
+	margin: 0;
+	padding: 0;
+	width: 100%;
+}
+
+#app-navigation #hufak-navigation > li.hufak-navigation-group-label .app-navigation-caption {
+	font-weight: bold;
+	line-height: var(--default-clickable-area);
+	padding: 10px var(--default-clickable-area) 0 var(--default-clickable-area);
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	box-shadow: none !important;
+	user-select: none;
+	pointer-events: none;
+	margin-inline-start: 10px;
+}
+
+#app-navigation #hufak-navigation > li {
+	display: inline-flex;
+	flex-wrap: wrap;
+	order: 1;
+	flex-shrink: 0;
+	margin: 0 0 3px;
+	width: 100%;
+	border-radius: var(--border-radius-element);
+	position: relative;
+	box-sizing: border-box;
+}
+
+#app-navigation #hufak-navigation > li > a {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: calc(2 * var(--default-grid-baseline));
+	line-height: var(--default-clickable-area);
+	min-height: var(--default-clickable-area);
+	padding-block: 0;
+	padding-inline: calc(2 * var(--default-grid-baseline));
+	color: var(--color-main-text);
+	border-radius: var(--border-radius-element);
+	box-sizing: border-box;
+	text-decoration: none;
+	flex: 1 1 auto;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	z-index: 100;
+	text-align: left;
+}
+
+#app-navigation #hufak-navigation > li > a .hufak-navigation-icon {
+	width: 16px;
+	height: 16px;
+	flex: 0 0 16px;
+	opacity: 0.85;
+	background-size: 16px 16px;
+	background-repeat: no-repeat;
+}
+
+#app-navigation #hufak-navigation > li.active > a,
+#app-navigation #hufak-navigation > li.active,
+#app-navigation #hufak-navigation > li > a[aria-current='page'] {
+	background-color: var(--color-primary-element);
+	color: var(--color-primary-element-text);
+}
+
+#app-navigation #hufak-navigation > li.active > a,
+#app-navigation #hufak-navigation > li > a[aria-current='page'] {
+	color: var(--color-primary-element-text);
+	font-weight: 600;
+}
+
+#app-navigation #hufak-navigation > li.active > a .hufak-navigation-icon,
+#app-navigation #hufak-navigation > li > a[aria-current='page'] .hufak-navigation-icon {
+	opacity: 1;
+	filter: var(--primary-invert-if-dark);
+}
+
+#app-navigation #hufak-navigation > li > a:hover,
+#app-navigation #hufak-navigation > li > a:hover > a,
+#app-navigation #hufak-navigation > li > a:focus,
+#app-navigation #hufak-navigation > li > a:focus > a {
+	background-color: var(--color-background-hover);
+}
+
+.hufak-signature-preview-html a {
+	color: var(--color-primary-element);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+#hufak-root #app-content {
+	grid-column: 2 !important;
+	min-width: 0 !important;
+	width: 100% !important;
+	height: 100% !important;
+	min-height: 0 !important;
 	overflow: auto !important;
 }
 
-#app-content-wrapper {
-	display: block !important;
+#hufak-root .hufak-admin-content {
+	min-width: 0;
+	width: 100%;
+	max-width: none;
+	padding: 22px 24px;
+	box-sizing: border-box;
 }
 
-#app-content #hufak-root,
-#app-content-vue #hufak-root,
-#app-content-wrapper #hufak-root,
-#content #hufak-root {
-	width: 100% !important;
-	max-width: none !important;
-	min-width: 0 !important;
-	min-height: 100% !important;
-	display: block !important;
-	box-sizing: border-box !important;
+@media (max-width: 1024px) {
+	#hufak-root .hufak-admin-shell {
+		display: block !important;
+		min-height: auto !important;
+	}
+
+	#hufak-root #app-navigation {
+		width: 100% !important;
+		min-width: 0 !important;
+		max-width: none !important;
+	}
 }

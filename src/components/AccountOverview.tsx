@@ -1,28 +1,30 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type { ReactElement } from 'react';
 import { apiRequest } from '../api';
 import { formatTimeSince, isInactiveOverMonth } from '../utils/timeUtils';
 import { styles } from '../styles';
-import { UserEmailAccountsOverview } from './UserEmailAccountsOverview';
+import { AccountEmailAccountsOverview } from './AccountEmailAccountsOverview';
+import type { DisabledUser, MailboxUser, UserStatusResponse } from '../types';
 
-function CheckStatus({ onEditMailbox }) {
+interface AccountOverviewProps {
+	onEditMailbox?: (uid: string) => void
+}
+
+function AccountOverview({ onEditMailbox }: AccountOverviewProps): ReactElement {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState('');
-	const [users, setUsers] = useState([]);
-	const [disabledUsers, setDisabledUsers] = useState([]);
+	const [users, setUsers] = useState<MailboxUser[]>([]);
+	const [disabledUsers, setDisabledUsers] = useState<DisabledUser[]>([]);
 	const [hoveredUid, setHoveredUid] = useState('');
 	const [resettingUid, setResettingUid] = useState('');
 
 	const loadUserStatus = useCallback(async () => {
 		try {
-			const data = await apiRequest(OC.generateUrl('/apps/hufak/api/users/status'));
+			const data = await apiRequest<UserStatusResponse>(
+				OC.generateUrl('/apps/hufak/api/accounts/status'),
+			);
 			const nextUsers = Array.isArray(data.users) ? data.users : [];
 			nextUsers.forEach((user) => {
-				if (user?.additionalAccountsLookupError) {
-					console.warn(
-						`[hufak] additionalaccounts lookup failed for ${user.uid || 'unknown'}:`,
-						user.additionalAccountsLookupError,
-					);
-				}
 				if (user?.identitiesLookupError) {
 					console.warn(
 						`[hufak] identities lookup failed for ${user.uid || 'unknown'}:`,
@@ -54,11 +56,11 @@ function CheckStatus({ onEditMailbox }) {
 		loadUserStatus();
 	}, [loadUserStatus]);
 
-	const resetUserApporder = async (uid) => {
+	const resetUserApporder = async (uid: string) => {
 		setResettingUid(uid);
 		try {
 			await apiRequest(
-				OC.generateUrl(`/apps/hufak/api/users/${encodeURIComponent(uid)}/apporder/default`),
+				OC.generateUrl(`/apps/hufak/api/accounts/${encodeURIComponent(uid)}/apporder/default`),
 				{
 					method: 'POST',
 				},
@@ -76,7 +78,7 @@ function CheckStatus({ onEditMailbox }) {
 	if (loading) {
 		return (
 			<section style={styles.formSection}>
-				<h2>User overview</h2>
+				<h2>Account overview</h2>
 				<p>Loading account status...</p>
 			</section>
 		);
@@ -85,7 +87,7 @@ function CheckStatus({ onEditMailbox }) {
 	if (error) {
 		return (
 			<section style={styles.formSection}>
-				<h2>User overview</h2>
+				<h2>Account overview</h2>
 				<p style={styles.validationMessage}>Failed to load status: {error}</p>
 			</section>
 		);
@@ -93,13 +95,21 @@ function CheckStatus({ onEditMailbox }) {
 
 	return (
 		<section style={styles.formSection}>
-			<h2>User overview</h2>
+			<h2>Account overview</h2>
+			<p style={styles.introText}>
+				Hufak-specific Nextcloud account and Snappymail email settings overview and
+				quick-edit. For all other Nextcloud account management tasks, see{' '}
+				<a href={OC.generateUrl('/settings/users')} style={styles.inlineLink}>
+					here
+				</a>
+				.
+			</p>
 			<div style={styles.tableWrapper}>
 				<table style={styles.table}>
 					<thead>
 						<tr>
 							<th style={styles.tableHeader}>UID</th>
-							<th style={styles.tableHeader}>Email accounts</th>
+							<th style={styles.tableHeader}>Email accounts and identities</th>
 							<th style={styles.tableHeader}>App order</th>
 							<th style={styles.tableHeader}>Last activity</th>
 							<th style={styles.tableHeader}>Failed login attempts</th>
@@ -112,16 +122,22 @@ function CheckStatus({ onEditMailbox }) {
 								<tr key={user.uid}>
 									<td style={styles.tableCell}>{user.uid}</td>
 									<td style={{ ...styles.tableCell, ...styles.emailCell }}>
-										<button
-											type="button"
-											onClick={() => onEditMailbox && onEditMailbox(user.uid)}
-											style={styles.emailCellEditButton}
-											title={`Edit mailbox for ${user.uid}`}
-											disabled={!onEditMailbox}
-										>
-											edit
-										</button>
-										<UserEmailAccountsOverview user={user} />
+										<AccountEmailAccountsOverview
+											user={user}
+											primaryAction={
+												onEditMailbox ? (
+													<button
+														type="button"
+														onClick={() => onEditMailbox(user.uid)}
+														style={styles.emailCellEditButton}
+														title={`Edit mailbox for ${user.uid}`}
+														aria-label={`Edit mailbox for ${user.uid}`}
+													>
+														<span className="icon icon-rename" aria-hidden="true" />
+													</button>
+												) : null
+											}
+										/>
 									</td>
 									<td style={styles.tableCell}>
 										<div
@@ -130,13 +146,13 @@ function CheckStatus({ onEditMailbox }) {
 											onMouseLeave={() => setHoveredUid('')}
 										>
 											{user.apporderMatches ? (
-												<span role="img" aria-label="app order matches default">
-													☑️
+												<span className="icon icon-checkmark" aria-label="app order matches default">
+													
 												</span>
 											) : (
 												<>
-													<span role="img" aria-label="app order differs from default">
-														⚠️
+													<span className="icon icon-error" aria-label="app order differs from default">
+														
 													</span>
 													<button
 														type="button"
@@ -146,11 +162,14 @@ function CheckStatus({ onEditMailbox }) {
 														aria-label="reset app order to default"
 														title="Reset to default app order"
 													>
-														{resettingUid === user.uid ? '🔄' : '🔁'}
+														<span
+															className={`icon ${resettingUid === user.uid ? 'icon-loading-small' : 'icon-history'}`}
+															aria-hidden="true"
+														/>
 													</button>
 												</>
 											)}
-											{isApporderMismatch && hoveredUid === user.uid && (
+						{isApporderMismatch && hoveredUid === user.uid && (
 												<div style={styles.tooltipPanel}>
 													<pre style={styles.tooltipPre}>
 														{JSON.stringify(user.apporderDiff || {}, null, 2)}
@@ -161,7 +180,10 @@ function CheckStatus({ onEditMailbox }) {
 									</td>
 									<td style={styles.tableCell}>
 										<span>{formatTimeSince(user.lastActivityTs)}</span>
-										{isInactiveOverMonth(user.lastActivityTs) && (
+										{user.lastActivityTs !== null &&
+										user.lastActivityTs !== undefined &&
+										Number(user.lastActivityTs) > 0 &&
+										isInactiveOverMonth(user.lastActivityTs) && (
 											<span
 												style={styles.inactiveWarning}
 												title="No activity for more than one month"
@@ -214,4 +236,4 @@ function CheckStatus({ onEditMailbox }) {
 	);
 }
 
-export { CheckStatus };
+export { AccountOverview };

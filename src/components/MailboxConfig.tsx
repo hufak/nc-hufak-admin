@@ -1,10 +1,20 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { FormEvent, ReactElement, ReactNode } from 'react';
 import { apiRequest } from '../api';
 import { styles } from '../styles';
 import { objectToTreeNodes, treeNodesToObject, updateTreeNode } from '../utils/treeUtils';
+import type { SharedMailboxNode, SharedMailboxesResponse } from '../types';
 
-function MailboxConfig({ emailDomain, setEmailDomain }) {
-	const [treeNodes, setTreeNodes] = useState([]);
+interface MailboxConfigProps {
+	emailDomain: string
+	setEmailDomain: (value: string) => void
+}
+
+function MailboxConfig({
+	emailDomain: _emailDomain,
+	setEmailDomain: _setEmailDomain,
+}: MailboxConfigProps): ReactElement {
+	const [treeNodes, setTreeNodes] = useState<SharedMailboxNode[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
 	const [status, setStatus] = useState('');
@@ -13,7 +23,7 @@ function MailboxConfig({ emailDomain, setEmailDomain }) {
 		async function loadSharedMailboxes() {
 			setLoading(true);
 			try {
-				const data = await apiRequest(
+				const data = await apiRequest<SharedMailboxesResponse>(
 					OC.generateUrl('/apps/hufak/api/settings/shared-mailboxes'),
 				);
 				setTreeNodes(objectToTreeNodes(data.sharedMailboxes || {}));
@@ -30,13 +40,13 @@ function MailboxConfig({ emailDomain, setEmailDomain }) {
 		loadSharedMailboxes();
 	}, []);
 
-	const saveSharedMailboxes = async (event) => {
+	const saveSharedMailboxes = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		setSaving(true);
 		try {
 			const serialized = JSON.stringify(treeNodesToObject(treeNodes));
 			const body = new URLSearchParams({ sharedMailboxes: serialized });
-			const data = await apiRequest(
+			const data = await apiRequest<SharedMailboxesResponse>(
 				OC.generateUrl('/apps/hufak/api/settings/shared-mailboxes'),
 				{
 					method: 'POST',
@@ -58,7 +68,7 @@ function MailboxConfig({ emailDomain, setEmailDomain }) {
 		}
 	};
 
-	const renderNodes = (nodes, depth = 0) => {
+	const renderNodes = (nodes: SharedMailboxNode[], depth = 0): ReactNode => {
 		if (!Array.isArray(nodes) || nodes.length === 0) {
 			return null;
 		}

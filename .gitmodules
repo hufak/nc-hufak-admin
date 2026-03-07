@@ -1,0 +1,3 @@
+[submodule "studentstats2025"]
+	path = studentstats2025
+	url = git@github.com:hufak/studentstats2025.git

@@ -1,12 +1,12 @@
-function fullNameIsValid(value) {
+function fullNameIsValid(value: string): boolean {
 	return /^([A-Z][A-Za-z]*)( [A-Z][A-Za-z]*)+$/.test(value.trim());
 }
 
-function usernameFromFullName(value) {
+function usernameFromFullName(value: string): string {
 	return value.trim().toLowerCase().replace(/\s+/g, '.');
 }
 
-function buildEmailFromUsername(username, emailDomain) {
+function buildEmailFromUsername(username: string, emailDomain: string): string {
 	return `${username}@${emailDomain}`;
 }
 

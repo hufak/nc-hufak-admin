@@ -1,4 +1,8 @@
-async function apiRequest(url, options = {}) {
+type ApiRequestOptions = Omit<RequestInit, 'headers'> & {
+	headers?: HeadersInit
+}
+
+async function apiRequest<T>(url: string, options: ApiRequestOptions = {}): Promise<T> {
 	const { headers = {}, ...requestOptions } = options;
 	const response = await fetch(url, {
 		credentials: 'same-origin',
@@ -21,7 +25,7 @@ async function apiRequest(url, options = {}) {
 		}
 		throw new Error(message);
 	}
-	return response.json();
+	return response.json() as Promise<T>;
 }
 
 export { apiRequest };

@@ -1,20 +1,39 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
+import type { FormEvent, ReactElement } from 'react';
 import { apiRequest } from '../api';
-import { UserEmailAccountsOverview } from './UserEmailAccountsOverview';
+import { AccountEmailAccountsOverview } from './AccountEmailAccountsOverview';
 import { styles } from '../styles';
+import type {
+	DeleteEntryPayload,
+	EditEntryPayload,
+	IdentityEntry,
+	MailboxUser,
+	SetIdentitySignaturePayload,
+	SnappyMailSettingsResponse,
+	UserStatusResponse,
+} from '../types';
 
-function ConfigureMail({ preselectedUid }) {
+interface ConfigureMailProps {
+	preselectedUid?: string
+}
+
+type PrimaryAccountEditorState = {
+	uid: string
+	email: string
+} | null
+
+function ConfigureMail({ preselectedUid }: ConfigureMailProps): ReactElement {
 	const [selectedUid, setSelectedUid] = useState(preselectedUid || '');
-	const [configureMailUser, setConfigureMailUser] = useState(null);
+	const [configureMailUser, setConfigureMailUser] = useState<MailboxUser | null>(null);
 	const [loadingUser, setLoadingUser] = useState(false);
 	const [userLookupError, setUserLookupError] = useState('');
-	const [editingPrimaryAccount, setEditingPrimaryAccount] = useState(null);
+	const [editingPrimaryAccount, setEditingPrimaryAccount] = useState<PrimaryAccountEditorState>(null);
 	const [editingEmail, setEditingEmail] = useState('');
 	const [editingPassword, setEditingPassword] = useState('');
 	const [editingSubmitting, setEditingSubmitting] = useState(false);
 	const [editingStatus, setEditingStatus] = useState('');
 
-	const loadMailboxOverview = useCallback(async (uidToLoad) => {
+	const loadMailboxOverview = useCallback(async (uidToLoad: string) => {
 		if (!uidToLoad) {
 			setConfigureMailUser(null);
 			setUserLookupError('');
@@ -25,14 +44,16 @@ function ConfigureMail({ preselectedUid }) {
 		setLoadingUser(true);
 		setUserLookupError('');
 		try {
-			const data = await apiRequest(OC.generateUrl('/apps/hufak/api/users/status'));
+			const data = await apiRequest<UserStatusResponse>(
+				OC.generateUrl('/apps/hufak/api/accounts/status'),
+			);
 			const nextUsers = Array.isArray(data.users) ? data.users : [];
 			const matchingUser = nextUsers.find(
 				(user) => String(user.uid || '') === String(uidToLoad),
 			);
 			setConfigureMailUser(matchingUser || null);
 			if (!matchingUser) {
-				setUserLookupError(`No mailbox overview found for uid "${uidToLoad}".`);
+				setUserLookupError(`No mailbox overview found for account "${uidToLoad}".`);
 			}
 		} catch (err) {
 			setUserLookupError(err instanceof Error ? err.message : 'Failed to load mailbox overview');
@@ -65,12 +86,11 @@ function ConfigureMail({ preselectedUid }) {
 		? `${resolvedUid}${displayNameAndPronouns ? ` (${displayNameAndPronouns})` : ''}`
 		: selectedUid
 			? loadingUser
-				? 'Loading user...'
-				: `No user found for "${selectedUid}"`
-			: 'No user selected';
+				? 'Loading account...'
+				: `No account found for "${selectedUid}"`
+			: 'No account selected';
 
-	const openPrimaryEmailEditor = (event) => {
-		const payload = event;
+	const openPrimaryEmailEditor = (payload: EditEntryPayload) => {
 		if (!payload || payload.type !== 'primaryEmail') {
 			return;
 		}
@@ -91,8 +111,54 @@ function ConfigureMail({ preselectedUid }) {
 		setEditingStatus('');
 		setEditingSubmitting(false);
 	};
+	const formatSnappyMailSettingsStatus = (data: SnappyMailSettingsResponse): string => {
+		const output = String(data.output || '').trim();
+		const errorOutput = String(data.errorOutput || '').trim();
+		const exitCode = data.exitCode ?? '';
+		const lines = [`Exit code: ${exitCode}`];
+		if (output) {
+			lines.push(`Output: ${output}`);
+		}
+		if (errorOutput) {
+			lines.push(`Error output: ${errorOutput}`);
+		}
+		if (!output && !errorOutput) {
+			lines.push('Command completed with no output.');
+		}
+		return lines.join('\n');
+	};
+	const applyPrimaryMailboxSettings = async ({
+		uid,
+		email,
+		password = '',
+	}: {
+		uid: string
+		email: string
+		password?: string
+	}): Promise<string> => {
+		const body = new URLSearchParams({
+			uid,
+			email,
+		});
+		if (password !== '') {
+			body.set('password', password);
+		}
+		const data = await apiRequest<SnappyMailSettingsResponse>(
+			OC.generateUrl('/apps/hufak/api/snappymail/settings'),
+			{
+				method: 'POST',
+				headers: {
+					'content-type':
+						'application/x-www-form-urlencoded;charset=UTF-8',
+				},
+				body,
+			},
+		);
+		await loadMailboxOverview(uid || selectedUid);
+		return formatSnappyMailSettingsStatus(data);
+	};
 
-	const submitPrimaryAccountSettings = async (event) => {
+	const submitPrimaryAccountSettings = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (!editingPrimaryAccount?.uid || !editingEmail || !editingPassword) {
 			setEditingStatus('Please provide e-mail and password.');
@@ -102,34 +168,12 @@ function ConfigureMail({ preselectedUid }) {
 		setEditingSubmitting(true);
 		setEditingStatus('Setting primary e-mail account...');
 		try {
-			const body = new URLSearchParams({
+			const statusMessage = await applyPrimaryMailboxSettings({
 				uid: editingPrimaryAccount.uid,
 				email: editingEmail,
 				password: editingPassword,
 			});
-			const data = await apiRequest(OC.generateUrl('/apps/hufak/api/snappymail/settings'), {
-				method: 'POST',
-				headers: {
-					'content-type':
-						'application/x-www-form-urlencoded;charset=UTF-8',
-				},
-				body,
-			});
-			const output = String(data.output || '').trim();
-			const errorOutput = String(data.errorOutput || '').trim();
-			const exitCode = data.exitCode ?? '';
-			const lines = [`Exit code: ${exitCode}`];
-			if (output) {
-				lines.push(`Output: ${output}`);
-			}
-			if (errorOutput) {
-				lines.push(`Error output: ${errorOutput}`);
-			}
-			if (!output && !errorOutput) {
-				lines.push('Command completed with no output.');
-			}
-			setEditingStatus(lines.join('\n'));
-			await loadMailboxOverview(selectedUid);
+			setEditingStatus(statusMessage);
 		} catch (err) {
 			setEditingStatus(
 				`Failed to set primary e-mail account: ${err instanceof Error ? err.message : 'Unknown error'}`,
@@ -139,7 +183,7 @@ function ConfigureMail({ preselectedUid }) {
 		}
 	};
 
-	const updateIdentitySignature = (identityPayload) => {
+	const updateIdentitySignature = (identityPayload: SetIdentitySignaturePayload) => {
 		if (!identityPayload || !configureMailUser) {
 			return;
 		}
@@ -151,14 +195,14 @@ function ConfigureMail({ preselectedUid }) {
 
 			const next = { ...current };
 
-			const updateIdentityCollection = (collection) => {
+			const updateIdentityCollection = (
+				collection: IdentityEntry[] | Record<string, IdentityEntry> | null | undefined,
+			): IdentityEntry[] | Record<string, IdentityEntry> | null | undefined => {
 				if (!Array.isArray(collection) && typeof collection !== 'object') {
 					return collection;
 				}
 
-				const index = Number.isInteger(identityPayload.index)
-					? identityPayload.index
-					: Number.parseInt(identityPayload.index, 10);
+				const index = identityPayload.index;
 				if (!Number.isInteger(index) || index < 0) {
 					return collection;
 				}
@@ -173,17 +217,17 @@ function ConfigureMail({ preselectedUid }) {
 						clone[index] = {
 							...item,
 							signature: identityPayload.signature,
-						};
+						} as IdentityEntry;
 					}
 					return clone;
 				}
 
-				const keys = Object.keys(collection);
+				const keys = Object.keys(collection as Record<string, IdentityEntry>);
 				if (index >= keys.length) {
 					return collection;
 				}
 				const key = keys[index];
-				const item = collection[key];
+				const item = (collection as Record<string, IdentityEntry>)[key];
 				if (!item || typeof item !== 'object') {
 					return collection;
 				}
@@ -192,7 +236,7 @@ function ConfigureMail({ preselectedUid }) {
 					[key]: {
 						...item,
 						signature: identityPayload.signature,
-					},
+					} as IdentityEntry,
 				};
 			};
 
@@ -202,21 +246,72 @@ function ConfigureMail({ preselectedUid }) {
 				const currentAdditionalIdentities = {
 					...(current.additionalAccountIdentities || {}),
 				};
-				currentAdditionalIdentities[identityPayload.accountKey] = updateIdentityCollection(
+				const updatedCollection = updateIdentityCollection(
 					currentAdditionalIdentities[identityPayload.accountKey],
 				);
+				if (updatedCollection) {
+					currentAdditionalIdentities[identityPayload.accountKey] = updatedCollection;
+				}
 				next.additionalAccountIdentities = currentAdditionalIdentities;
 			}
 
 			return next;
 		});
 	};
+	const deleteMailboxEntry = async (payload: DeleteEntryPayload) => {
+		if (!payload) {
+			return;
+		}
+
+		if (payload.type === 'primaryEmail') {
+			try {
+				await applyPrimaryMailboxSettings({
+					uid: payload.uid || selectedUid,
+					email: '',
+				});
+			} catch (err) {
+				setUserLookupError(
+					err instanceof Error
+						? err.message
+						: 'Failed to delete primary e-mail account',
+				);
+			}
+			return;
+		}
+
+		if (payload.type === 'additionalEmail') {
+			try {
+				const body = new URLSearchParams({
+					uid: payload.uid || selectedUid,
+					email: payload.email || '',
+				});
+				await apiRequest<unknown>(
+					OC.generateUrl('/apps/hufak/api/snappymail/additional-account'),
+					{
+						method: 'DELETE',
+						headers: {
+							'content-type':
+								'application/x-www-form-urlencoded;charset=UTF-8',
+						},
+						body,
+					},
+				);
+				await loadMailboxOverview(payload.uid || selectedUid);
+			} catch (err) {
+				setUserLookupError(
+					err instanceof Error
+						? err.message
+						: 'Failed to delete additional e-mail account',
+				);
+			}
+		}
+	};
 
 	return (
 		<section style={styles.formSection}>
-			<h2>User mailboxes</h2>
+			<h2>Account mailboxes</h2>
 			<div style={styles.form}>
-				<label style={styles.fieldLabel}>user</label>
+				<label style={styles.fieldLabel}>account</label>
 				<span style={styles.userSummaryText}>{userSummary}</span>
 
 				<h3 style={styles.subheading}>Mail account overview</h3>
@@ -225,9 +320,10 @@ function ConfigureMail({ preselectedUid }) {
 				) : userLookupError ? (
 					<p style={styles.validationMessage}>{userLookupError}</p>
 				) : (
-					<UserEmailAccountsOverview
+					<AccountEmailAccountsOverview
 						user={configureMailUser}
 						editable
+						onDeleteEntry={deleteMailboxEntry}
 						onSetIdentitySignature={updateIdentitySignature}
 						onEditEntry={openPrimaryEmailEditor}
 					/>

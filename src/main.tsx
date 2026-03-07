@@ -1,5 +1,5 @@
-import React from 'react';
 import { createRoot } from 'react-dom/client';
+import './vendor-nextcloud-vue.css';
 import { App } from './components/App';
 
 const rootElement = document.getElementById('hufak-root');

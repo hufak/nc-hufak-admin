@@ -3,19 +3,29 @@
   "version": "0.0.1",
   "private": true,
   "scripts": {
+    "typecheck": "tsc --noEmit",
     "build": "webpack --mode production",
     "dev": "webpack --mode development --watch"
   },
   "dependencies": {
+    "@nextcloud/vue": "^9.5.0",
+    "css-loader": "^7.1.4",
     "jsondiffpatch": "^0.7.3",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "sass": "^1.97.3",
+    "sass-loader": "^16.0.7",
+    "style-loader": "^4.0.0"
   },
   "devDependencies": {
     "@babel/core": "^7.26.0",
     "@babel/preset-env": "^7.26.0",
     "@babel/preset-react": "^7.25.9",
+    "@babel/preset-typescript": "^7.28.5",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "babel-loader": "^9.2.1",
+    "typescript": "^5.9.3",
     "webpack": "^5.97.1",
     "webpack-cli": "^6.0.1"
   }

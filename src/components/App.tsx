@@ -1,10 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { ReactElement } from 'react';
 import { apiRequest } from '../api';
 import { DEFAULT_EMAIL_DOMAIN } from '../constants';
 import { styles } from '../styles';
 import { AdminPanel } from './AdminPanel';
+import type { AdminStatusResponse, EmailDomainResponse } from '../types';
 
-function App() {
+function App(): ReactElement {
 	const [loading, setLoading] = useState(true);
 	const [isAdmin, setIsAdmin] = useState(false);
 	const [emailDomain, setEmailDomain] = useState(DEFAULT_EMAIL_DOMAIN);
@@ -13,11 +15,13 @@ function App() {
 	useEffect(() => {
 		async function load() {
 			try {
-				const statusData = await apiRequest(OC.generateUrl('/apps/hufak/api/admin-status'));
+				const statusData = await apiRequest<AdminStatusResponse>(
+					OC.generateUrl('/apps/hufak/api/admin-status'),
+				);
 				const admin = Boolean(statusData.isAdmin);
 				setIsAdmin(admin);
 				if (admin) {
-					const domainData = await apiRequest(
+					const domainData = await apiRequest<EmailDomainResponse>(
 						OC.generateUrl('/apps/hufak/api/settings/email-domain'),
 					);
 					setEmailDomain(domainData.emailDomain || DEFAULT_EMAIL_DOMAIN);
@@ -34,7 +38,7 @@ function App() {
 
 	if (loading) {
 		return (
-			<div style={styles.page}>
+			<div className="hufak-page" style={styles.page}>
 				<p>Checking administrator privileges...</p>
 			</div>
 		);
@@ -42,14 +46,14 @@ function App() {
 
 	if (error) {
 		return (
-			<div style={styles.page}>
+			<div className="hufak-page" style={styles.page}>
 				<p>Failed to check administrator privileges: {error}</p>
 			</div>
 		);
 	}
 
 	return (
-		<div style={styles.page}>
+		<div className="hufak-page" style={styles.page}>
 			{isAdmin ? (
 				<AdminPanel emailDomain={emailDomain} setEmailDomain={setEmailDomain} />
 			) : (

@@ -1,9 +1,19 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import type { ChangeEvent, FormEvent, ReactElement } from 'react';
 import { apiRequest } from '../api';
 import { buildEmailFromUsername, fullNameIsValid, usernameFromFullName } from '../utils/userUtils';
 import { styles } from '../styles';
+import type {
+	ApporderResetResponse,
+	SnappyMailSettingsResponse,
+	UserCreateResponse,
+} from '../types';
 
-function AddUser({ emailDomain }) {
+interface AddAccountProps {
+	emailDomain: string
+}
+
+function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 	const [fullName, setFullName] = useState('');
 	const [pronouns, setPronouns] = useState('');
 	const [username, setUsername] = useState('');
@@ -15,39 +25,39 @@ function AddUser({ emailDomain }) {
 	const [creationOutput, setCreationOutput] = useState('');
 	const isFullNameValid = fullNameIsValid(fullName);
 
-	const onFullNameChange = (event) => {
+	const onFullNameChange = (event: ChangeEvent<HTMLInputElement>) => {
 		const nextFullName = event.target.value;
 		setFullName(nextFullName);
 		setIsCreateLocked(false);
 		setUsername(usernameFromFullName(nextFullName));
 	};
 
-	const onPronounsChange = (event) => {
+	const onPronounsChange = (event: ChangeEvent<HTMLInputElement>) => {
 		setPronouns(event.target.value);
 		setIsCreateLocked(false);
 	};
 
-	const setPronounsQuickFill = (nextPronouns) => {
+	const setPronounsQuickFill = (nextPronouns: string) => {
 		setPronouns(nextPronouns);
 		setIsCreateLocked(false);
 	};
 
-	const onUsernameChange = (event) => {
+	const onUsernameChange = (event: ChangeEvent<HTMLInputElement>) => {
 		setUsername(event.target.value);
 		setIsCreateLocked(false);
 	};
 
-	const onEmailChange = (event) => {
+	const onEmailChange = (event: ChangeEvent<HTMLInputElement>) => {
 		setEmail(event.target.value);
 		setIsCreateLocked(false);
 	};
 
-	const onDefaultEmailAccountChange = (event) => {
+	const onDefaultEmailAccountChange = (event: ChangeEvent<HTMLInputElement>) => {
 		setDefaultEmailAccount(event.target.value);
 		setIsCreateLocked(false);
 	};
 
-	const onDefaultEmailAccountPasswordChange = (event) => {
+	const onDefaultEmailAccountPasswordChange = (event: ChangeEvent<HTMLInputElement>) => {
 		setDefaultEmailAccountPassword(event.target.value);
 		setIsCreateLocked(false);
 	};
@@ -67,7 +77,7 @@ function AddUser({ emailDomain }) {
 		setIsCreateLocked(false);
 	};
 
-	const onSubmit = async (event) => {
+	const onSubmit = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
 		if (!isFullNameValid) {
 			setCreationOutput(
@@ -84,7 +94,7 @@ function AddUser({ emailDomain }) {
 
 		setIsCreating(true);
 		setIsCreateLocked(false);
-		setCreationOutput(`⏳ Step 1/${totalSteps}: Creating user...`);
+		setCreationOutput(`⏳ Step 1/${totalSteps}: Creating account...`);
 
 		try {
 			const body = new URLSearchParams({
@@ -93,7 +103,7 @@ function AddUser({ emailDomain }) {
 				username,
 				email,
 			});
-			const data = await apiRequest(OC.generateUrl('/apps/hufak/api/users'), {
+			const data = await apiRequest<UserCreateResponse>(OC.generateUrl('/apps/hufak/api/accounts'), {
 				method: 'POST',
 				headers: {
 					'content-type': 'application/x-www-form-urlencoded;charset=UTF-8',
@@ -102,7 +112,7 @@ function AddUser({ emailDomain }) {
 			});
 			const actualCreatedUid = String(data.username || createdUid);
 			const lines = [
-				`✅ Step 1/${totalSteps}: ${data.message || `User "${actualCreatedUid}" created successfully`}`,
+				`✅ Step 1/${totalSteps}: ${data.message || `Account "${actualCreatedUid}" created successfully`}`,
 			];
 			if (data.password) {
 				lines.push(`🔐 Generated password: ${data.password}`);
@@ -110,9 +120,9 @@ function AddUser({ emailDomain }) {
 
 			lines.push(`⏳ Step 2/${totalSteps}: Setting app order defaults...`);
 			try {
-				const resetData = await apiRequest(
+				const resetData = await apiRequest<ApporderResetResponse>(
 					OC.generateUrl(
-						`/apps/hufak/api/users/${encodeURIComponent(actualCreatedUid)}/apporder/default`,
+						`/apps/hufak/api/accounts/${encodeURIComponent(actualCreatedUid)}/apporder/default`,
 					),
 					{
 						method: 'POST',
@@ -129,14 +139,14 @@ function AddUser({ emailDomain }) {
 			}
 
 			if (shouldConfigureDefaultMailbox) {
-				lines.push(`⏳ Step 3/${totalSteps}: Setting primary user mailbox...`);
+				lines.push(`⏳ Step 3/${totalSteps}: Setting primary account mailbox...`);
 				try {
 					const mailboxBody = new URLSearchParams({
 						uid: actualCreatedUid,
 						email: defaultEmailAccount.trim(),
 						password: defaultEmailAccountPassword,
 					});
-					const mailboxData = await apiRequest(
+					const mailboxData = await apiRequest<SnappyMailSettingsResponse>(
 						OC.generateUrl('/apps/hufak/api/snappymail/settings'),
 						{
 							method: 'POST',
@@ -158,12 +168,12 @@ function AddUser({ emailDomain }) {
 						messageParts.push(`Error output: ${errorOutput}`);
 					}
 					lines.push(
-						`✅ Step 3/${totalSteps}: Primary user mailbox configured. ${messageParts.join(' | ')}`,
+						`✅ Step 3/${totalSteps}: Primary account mailbox configured. ${messageParts.join(' | ')}`,
 					);
 				} catch (step3Err) {
 					allStepsSucceeded = false;
 					lines.push(
-						`❌ Step 3/${totalSteps}: Failed to set primary user mailbox: ${
+						`❌ Step 3/${totalSteps}: Failed to set primary account mailbox: ${
 							step3Err instanceof Error ? step3Err.message : 'Unknown error'
 						}`,
 					);
@@ -175,7 +185,7 @@ function AddUser({ emailDomain }) {
 		} catch (err) {
 			allStepsSucceeded = false;
 			setCreationOutput(
-				`❌ Step 1/${totalSteps} failed: ${err instanceof Error ? err.message : 'User creation failed'}`,
+				`❌ Step 1/${totalSteps} failed: ${err instanceof Error ? err.message : 'Account creation failed'}`,
 			);
 			setIsCreateLocked(false);
 		} finally {
@@ -185,7 +195,7 @@ function AddUser({ emailDomain }) {
 
 	return (
 		<section style={styles.formSection}>
-			<h2>Create new user</h2>
+			<h2>Create new account</h2>
 			<form onSubmit={onSubmit} style={styles.form} autoComplete="off">
 				<label style={styles.fieldLabel} htmlFor="hufak-full-name">
 					full name
@@ -199,7 +209,7 @@ function AddUser({ emailDomain }) {
 					name="hufak-create-full-name"
 					disabled={isCreating}
 					placeholder="John Doe"
-					style={styles.input}
+					style={{ ...styles.input, ...styles.addUserInput }}
 				/>
 				{fullName.length > 0 && !isFullNameValid && (
 					<p style={styles.validationMessage}>
@@ -221,32 +231,34 @@ function AddUser({ emailDomain }) {
 						name="hufak-create-pronouns"
 						disabled={isCreating}
 						placeholder="she/her"
-						style={styles.input}
+						style={{ ...styles.input, ...styles.addUserInput }}
 					/>
-					<button
-						type="button"
-						onClick={() => setPronounsQuickFill('sie/sie she/her')}
-						disabled={isCreating}
-						style={styles.quickFillButton}
-					>
-						she/her
-					</button>
-					<button
-						type="button"
-						onClick={() => setPronounsQuickFill('er/ihn he/him')}
-						disabled={isCreating}
-						style={styles.quickFillButton}
-					>
-						he/him
-					</button>
-					<button
-						type="button"
-						onClick={() => setPronounsQuickFill('they/them')}
-						disabled={isCreating}
-						style={styles.quickFillButton}
-					>
-						they/them
-					</button>
+					<div style={styles.quickFillLinks}>
+						<button
+							type="button"
+							onClick={() => setPronounsQuickFill('sie/sie she/her')}
+							disabled={isCreating}
+							style={styles.quickFillLink}
+						>
+							she/her
+						</button>
+						<button
+							type="button"
+							onClick={() => setPronounsQuickFill('er/ihn he/him')}
+							disabled={isCreating}
+							style={styles.quickFillLink}
+						>
+							he/him
+						</button>
+						<button
+							type="button"
+							onClick={() => setPronounsQuickFill('they/them')}
+							disabled={isCreating}
+							style={styles.quickFillLink}
+						>
+							they/them
+						</button>
+					</div>
 				</div>
 
 				<label style={styles.fieldLabel} htmlFor="hufak-username">
@@ -260,11 +272,11 @@ function AddUser({ emailDomain }) {
 					autoComplete="off"
 					name="hufak-create-username"
 					disabled={isCreating}
-					style={styles.input}
+					style={{ ...styles.input, ...styles.addUserInput }}
 				/>
 
 				<label style={styles.fieldLabel} htmlFor="hufak-email">
-					user email
+					account email
 				</label>
 				<input
 					id="hufak-email"
@@ -274,39 +286,46 @@ function AddUser({ emailDomain }) {
 					autoComplete="off"
 					name="hufak-create-email"
 					disabled={isCreating}
-					style={styles.input}
+					style={{ ...styles.input, ...styles.addUserInput }}
 				/>
 				<p style={styles.hintText}>Default domain from configuration: {emailDomain}</p>
 
 				<label style={styles.fieldLabel} htmlFor="hufak-default-email-account">
-					primary user mailbox
+					Primary mailbox (copy password over from{' '}
+					<a
+						href="https://kas.all-inkl.com/email/email-account/"
+						target="_blank"
+						rel="noreferrer"
+						style={styles.inlineLink}
+					>
+						kas.all-inkl.com
+					</a>
+					)
 				</label>
-				<input
-					id="hufak-default-email-account"
-					type="email"
-					value={defaultEmailAccount}
-					onChange={onDefaultEmailAccountChange}
-					autoComplete="off"
-					name="hufak-create-mailbox-email"
-					disabled={isCreating}
-					placeholder="e.g. bipol@hufak.net (optional)"
-					style={styles.input}
-				/>
-
-				<label style={styles.fieldLabel} htmlFor="hufak-default-email-account-password">
-					primary user mailbox password
-				</label>
-				<input
-					id="hufak-default-email-account-password"
-					type="password"
-					value={defaultEmailAccountPassword}
-					onChange={onDefaultEmailAccountPasswordChange}
-					autoComplete="new-password"
-					name="hufak-create-mailbox-password"
-					disabled={isCreating}
-					placeholder="copy over from https://kas.all-inkl.com"
-					style={styles.input}
-				/>
+				<div style={styles.mailboxRow}>
+					<input
+						id="hufak-default-email-account"
+						type="email"
+						value={defaultEmailAccount}
+						onChange={onDefaultEmailAccountChange}
+						autoComplete="off"
+						name="hufak-create-mailbox-email"
+						disabled={isCreating}
+						placeholder="e.g. bipol@hufak.net (optional)"
+						style={{ ...styles.input, ...styles.addUserInput, maxWidth: 'none', minWidth: 0 }}
+					/>
+					<input
+						id="hufak-default-email-account-password"
+						type="password"
+						value={defaultEmailAccountPassword}
+						onChange={onDefaultEmailAccountPasswordChange}
+						autoComplete="new-password"
+						name="hufak-create-mailbox-password"
+						disabled={isCreating}
+						placeholder="Password"
+						style={{ ...styles.input, ...styles.addUserInput, maxWidth: 'none', minWidth: 0 }}
+					/>
+				</div>
 
 				<div style={styles.buttonRow}>
 					<button
@@ -338,4 +357,4 @@ function AddUser({ emailDomain }) {
 	);
 }
 
-export { AddUser };
+export { AddAccount };

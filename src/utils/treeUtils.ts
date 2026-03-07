@@ -1,11 +1,13 @@
+import type { SharedMailboxNode } from '../types';
+
 let sharedMailboxNodeId = 0;
 
-function nextSharedMailboxNodeId() {
+function nextSharedMailboxNodeId(): string {
 	sharedMailboxNodeId += 1;
 	return `shared-mailbox-node-${sharedMailboxNodeId}`;
 }
 
-function objectToTreeNodes(value) {
+function objectToTreeNodes(value: unknown): SharedMailboxNode[] {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		return [];
 	}
@@ -26,11 +28,11 @@ function objectToTreeNodes(value) {
 			type: 'value',
 			value: childValue == null ? '' : String(childValue),
 		};
-	});
+	}) as SharedMailboxNode[];
 }
 
-function treeNodesToObject(nodes) {
-	const result = {};
+function treeNodesToObject(nodes: SharedMailboxNode[]): Record<string, unknown> {
+	const result: Record<string, unknown> = {};
 	nodes.forEach((node) => {
 		if (!node?.key) {
 			return;
@@ -44,7 +46,11 @@ function treeNodesToObject(nodes) {
 	return result;
 }
 
-function updateTreeNode(nodes, targetId, updater) {
+function updateTreeNode(
+	nodes: SharedMailboxNode[],
+	targetId: string,
+	updater: (node: SharedMailboxNode) => SharedMailboxNode,
+): SharedMailboxNode[] {
 	return nodes.map((node) => {
 		if (node.id === targetId) {
 			return updater(node);

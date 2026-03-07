@@ -1,26 +1,213 @@
 #content,
-#content-vue,
-#app-content,
-#app-content-vue,
-#app-content-wrapper {
+#content-vue {
 	width: 100% !important;
 	max-width: none !important;
 	min-width: 0 !important;
-	overflow: auto !important;
+	padding: 0 !important;
 }
 
-#app-content-wrapper {
-	display: block !important;
-}
-
-#app-content #hufak-root,
-#app-content-vue #hufak-root,
-#app-content-wrapper #hufak-root,
 #content #hufak-root {
+	height: calc(100vh - var(--header-height)) !important;
+	min-height: calc(100vh - var(--header-height)) !important;
 	width: 100% !important;
 	max-width: none !important;
 	min-width: 0 !important;
-	min-height: 100% !important;
 	display: block !important;
 	box-sizing: border-box !important;
+	overflow: hidden !important;
+	border-radius: var(--body-container-radius) !important;
+}
+
+#hufak-root .hufak-page {
+	height: 100%;
+	min-height: 100%;
+}
+
+#hufak-root .hufak-admin-shell {
+	display: flex !important;
+	width: 100% !important;
+	height: 100% !important;
+	min-width: 0 !important;
+	min-height: 0 !important;
+}
+
+#hufak-root #hufak-navigation {
+	list-style: none;
+	margin: 0;
+	position: relative;
+	width: 100%;
+	height: 100%;
+	overflow-x: hidden;
+	overflow-y: auto;
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	gap: var(--default-grid-baseline, 4px);
+	padding: var(--app-navigation-padding);
+}
+
+#hufak-root #hufak-navigation > li.hufak-navigation-group-label {
+	display: block;
+	margin: 0;
+	padding: 0;
+	width: 100%;
+}
+
+#hufak-root #hufak-navigation > li.hufak-navigation-group-label .app-navigation-caption {
+	font-weight: bold;
+	line-height: var(--default-clickable-area);
+	padding: 10px var(--default-clickable-area) 0 var(--default-clickable-area);
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	box-shadow: none !important;
+	user-select: none;
+	pointer-events: none;
+	margin-inline-start: 10px;
+}
+
+#hufak-root #hufak-navigation > li {
+	display: inline-flex;
+	flex-wrap: wrap;
+	order: 1;
+	flex-shrink: 0;
+	margin: 0;
+	width: 100%;
+	border-radius: var(--border-radius-element);
+	position: relative;
+	box-sizing: border-box;
+}
+
+#hufak-root #hufak-navigation > li > a {
+	display: flex;
+	align-items: center;
+	justify-content: flex-start;
+	gap: calc(2 * var(--default-grid-baseline));
+	line-height: var(--default-clickable-area);
+	min-height: var(--default-clickable-area);
+	padding-block: 0;
+	padding-inline: calc(2 * var(--default-grid-baseline));
+	color: var(--color-main-text);
+	border-radius: var(--border-radius-element);
+	box-sizing: border-box;
+	text-decoration: none;
+	flex: 1 1 auto;
+	overflow: hidden;
+	white-space: nowrap;
+	text-overflow: ellipsis;
+	z-index: 100;
+	text-align: left;
+}
+
+#hufak-root #hufak-navigation > li > a .hufak-navigation-icon {
+	width: 16px;
+	height: 16px;
+	flex: 0 0 16px;
+	opacity: 0.85;
+	background-size: 16px 16px;
+	background-repeat: no-repeat;
+}
+
+#hufak-root #hufak-navigation > li.active > a,
+#hufak-root #hufak-navigation > li.active,
+#hufak-root #hufak-navigation > li > a[aria-current='page'] {
+	background-color: var(--color-primary-element);
+	color: var(--color-primary-element-text);
+}
+
+#hufak-root #hufak-navigation > li.active > a,
+#hufak-root #hufak-navigation > li > a[aria-current='page'] {
+	color: var(--color-primary-element-text);
+	font-weight: 600;
+}
+
+#hufak-root #hufak-navigation > li.active > a .hufak-navigation-icon,
+#hufak-root #hufak-navigation > li > a[aria-current='page'] .hufak-navigation-icon {
+	opacity: 1;
+	filter: var(--primary-invert-if-dark);
+}
+
+#hufak-root #hufak-navigation > li > a:hover,
+#hufak-root #hufak-navigation > li > a:focus {
+	background-color: var(--color-background-hover);
+}
+
+#hufak-root .app-navigation-toggle-wrapper {
+	display: none;
+}
+
+#hufak-root .hufak-toggle-icon {
+	display: block;
+	width: 20px;
+	height: 20px;
+	fill: currentColor;
+}
+
+#hufak-root #app-content-vue.app-content {
+	flex: 1 1 auto;
+	min-width: 0;
+	width: auto;
+	height: 100%;
+	min-height: 0;
+	overflow: auto;
+}
+
+#hufak-root .hufak-admin-content {
+	min-width: 0;
+	width: 100%;
+	max-width: none;
+	padding: 22px 24px;
+	box-sizing: border-box;
+}
+
+.hufak-signature-preview-html a {
+	color: var(--color-primary-element);
+	text-decoration: underline;
+	text-underline-offset: 2px;
+}
+
+/* Matches nextcloud-vue src/assets/variables.scss ($breakpoint-mobile: 1024px). */
+@media (max-width: 1024px) {
+	#content #hufak-root {
+		height: auto !important;
+		min-height: calc(100vh - var(--header-height)) !important;
+		overflow: auto !important;
+	}
+
+	#hufak-root .hufak-page {
+		height: auto !important;
+		min-height: 100% !important;
+		overflow: visible !important;
+	}
+
+	#hufak-root .hufak-admin-shell {
+		position: relative;
+		display: block !important;
+		height: auto !important;
+		min-height: calc(100vh - var(--header-height)) !important;
+	}
+
+	#hufak-root .app-navigation {
+		position: absolute;
+		border-inline-end: 1px solid var(--color-border);
+	}
+
+	#hufak-root .app-navigation-toggle-wrapper {
+		display: block;
+	}
+
+	#hufak-root #app-content-vue.app-content {
+		height: auto !important;
+		min-height: calc(100vh - var(--header-height)) !important;
+		overflow: visible !important;
+	}
+
+	#hufak-root .hufak-admin-content {
+		padding: 18px 16px 24px;
+	}
+}
+
+@media (min-width: 1025px) {
+	#hufak-root .app-navigation--closed {
+		margin-inline-start: 0;
+	}
 }

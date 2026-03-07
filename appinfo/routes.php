@@ -26,13 +26,18 @@ return [
 		],
 		[
 			'name' => 'api#createUser',
-			'url' => '/api/users',
+			'url' => '/api/accounts',
 			'verb' => 'POST',
 		],
 		[
 			'name' => 'api#runSnappymailSettings',
 			'url' => '/api/snappymail/settings',
 			'verb' => 'POST',
+		],
+		[
+			'name' => 'api#deleteAdditionalSnappymailAccount',
+			'url' => '/api/snappymail/additional-account',
+			'verb' => 'DELETE',
 		],
 		[
 			'name' => 'api#getSignatureTemplate',
@@ -46,12 +51,12 @@ return [
 		],
 		[
 			'name' => 'api#listActiveUserStatus',
-			'url' => '/api/users/status',
+			'url' => '/api/accounts/status',
 			'verb' => 'GET',
 		],
 		[
 			'name' => 'api#listEnabledUids',
-			'url' => '/api/users/enabled-uids',
+			'url' => '/api/accounts/enabled-uids',
 			'verb' => 'GET',
 		],
 		[
@@ -76,7 +81,7 @@ return [
 		],
 		[
 			'name' => 'api#resetUserApporder',
-			'url' => '/api/users/{uid}/apporder/default',
+			'url' => '/api/accounts/{uid}/apporder/default',
 			'verb' => 'POST',
 		],
 	],

@@ -37,9 +37,9 @@ function App(): ReactElement {
 
 	return (
 		<div className="hufak-page" style={styles.page}>
-			{error ? <p>Failed to check administrator privileges: {error}</p> : null}
 			<AdminPanel
 				adminStatus={adminStatus}
+				adminStatusError={error}
 				emailDomain={emailDomain}
 				setEmailDomain={setEmailDomain}
 			/>

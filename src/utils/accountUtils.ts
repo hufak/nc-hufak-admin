@@ -33,9 +33,11 @@ function extractIdentityEntries(
 		return [];
 	}
 
-	const entries = Array.isArray(identities) ? identities : Object.values(identities);
+	const entries = Array.isArray(identities)
+		? identities.map((entry, index) => [String(index), entry] as const)
+		: Object.entries(identities);
 	return entries
-		.map((entry): NormalizedIdentityEntry | null => {
+		.map(([identityId, entry]): NormalizedIdentityEntry | null => {
 			if (!entry || typeof entry !== 'object') {
 				return null;
 			}
@@ -55,7 +57,7 @@ function extractIdentityEntries(
 			if (!name && !email) {
 				return null;
 			}
-			return { name, email, signature };
+			return { identityId, name, email, signature };
 		})
 		.filter((entry): entry is NormalizedIdentityEntry => entry !== null);
 }

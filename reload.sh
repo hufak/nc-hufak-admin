@@ -1,2 +1,3 @@
 #!/bin/bash
-git pull --rebase && occ app:disable hufak && occ app:enable hufak
+HOME=/www/htdocs/${USER##*\-}
+git pull --rebase && php $HOME/cloud.hufak.net/occ app:disable hufak && php $HOME/cloud.hufak.net/occ app:enable hufak

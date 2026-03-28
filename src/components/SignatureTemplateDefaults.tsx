@@ -2,11 +2,18 @@ import { useEffect, useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
 import { apiRequest } from '../api';
 import { styles } from '../styles';
-import { SignaturePreview } from './SignaturePreview';
+import {
+	serializeSignatureMarkup,
+	splitSignatureMarkup,
+} from '../utils/signatureUtils';
+import { SignatureMarkupEditor } from './SignatureMarkupEditor';
 import type { SignatureTemplateResponse } from '../types';
 
 function SignatureTemplateDefaults(): ReactElement {
 	const [template, setTemplate] = useState('');
+	const [useHtmlSignature, setUseHtmlSignature] = useState(false);
+	const [initialTemplate, setInitialTemplate] = useState('');
+	const [initialUseHtmlSignature, setInitialUseHtmlSignature] = useState(false);
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
 	const [status, setStatus] = useState('');
@@ -17,7 +24,13 @@ function SignatureTemplateDefaults(): ReactElement {
 				const templateData = await apiRequest<SignatureTemplateResponse>(
 					OC.generateUrl('/apps/hufak/api/settings/signature-template'),
 				);
-				setTemplate(typeof templateData.template === 'string' ? templateData.template : '');
+				const rawTemplate =
+					typeof templateData.template === 'string' ? templateData.template : '';
+				const { text, useHtml } = splitSignatureMarkup(rawTemplate);
+				setTemplate(text);
+				setUseHtmlSignature(useHtml);
+				setInitialTemplate(text);
+				setInitialUseHtmlSignature(useHtml);
 				setStatus('');
 			} catch (err) {
 				setStatus(`Error: ${err instanceof Error ? err.message : 'Failed to load template'}`);
@@ -34,7 +47,8 @@ function SignatureTemplateDefaults(): ReactElement {
 		setSaving(true);
 		setStatus('Saving template...');
 		try {
-			const body = new URLSearchParams({ template });
+			const serializedTemplate = serializeSignatureMarkup(template, useHtmlSignature);
+			const body = new URLSearchParams({ template: serializedTemplate });
 			const data = await apiRequest<SignatureTemplateResponse>(
 				OC.generateUrl('/apps/hufak/api/settings/signature-template'),
 				{
@@ -45,6 +59,8 @@ function SignatureTemplateDefaults(): ReactElement {
 					body,
 				},
 			);
+			setInitialTemplate(template);
+			setInitialUseHtmlSignature(useHtmlSignature);
 			setStatus(data.message || 'Signature template saved');
 		} catch (err) {
 			setStatus(`Error: ${err instanceof Error ? err.message : 'Failed to save template'}`);
@@ -53,27 +69,44 @@ function SignatureTemplateDefaults(): ReactElement {
 		}
 	};
 
+	const hasTextareaChanges = template !== initialTemplate;
+
 	return (
 		<section style={styles.formSection}>
-			<h2>Signature template</h2>
+			<div style={styles.proseContent}>
+				<h2>Signature template</h2>
+			</div>
 			<form onSubmit={saveTemplate} style={styles.form}>
-				<div style={styles.signatureEditorLayout}>
-					<div style={styles.signatureEditorPane}>
-						<textarea
-							value={template}
-							onChange={(event) => setTemplate(event.target.value)}
-							style={styles.templateBox}
-							placeholder="Enter signature template..."
-							disabled={loading}
-						/>
-					</div>
-					<div style={styles.signaturePreviewPane}>
-						<SignaturePreview signature={template} />
-					</div>
+				<SignatureMarkupEditor
+					text={template}
+					useHtml={useHtmlSignature}
+					onTextChange={setTemplate}
+					onUseHtmlChange={setUseHtmlSignature}
+					disabled={loading || saving}
+					textareaStyle={styles.templateBox}
+					placeholder="Enter signature template..."
+				/>
+				<div style={styles.buttonRow}>
+					<button
+						type="submit"
+						disabled={loading || saving || !hasTextareaChanges}
+						style={styles.submitButton}
+					>
+						{saving ? 'Saving...' : 'Save signature template'}
+					</button>
+					<button
+						type="button"
+						disabled={loading || saving}
+						style={styles.clearButton}
+						onClick={() => {
+							setTemplate(initialTemplate);
+							setUseHtmlSignature(initialUseHtmlSignature);
+							setStatus('');
+						}}
+					>
+						Reset
+					</button>
 				</div>
-				<button type="submit" disabled={loading || saving} style={styles.submitButton}>
-					{saving ? 'Saving...' : 'Save signature template'}
-				</button>
 				{status && <p style={styles.successMessage}>{status}</p>}
 			</form>
 		</section>

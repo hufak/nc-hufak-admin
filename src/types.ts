@@ -72,6 +72,7 @@ export interface SnappyMailSettingsResponse {
 	output?: string
 	errorOutput?: string
 	message?: string
+	identitiesFileMessage?: string
 }
 
 export interface SignatureTemplateResponse {
@@ -95,6 +96,7 @@ export interface AdditionalAccountEmail {
 }
 
 export interface NormalizedIdentityEntry {
+	identityId: string
 	name: string
 	email: string
 	signature: string
@@ -110,7 +112,7 @@ export interface DeleteEntryPayload {
 	accountType?: 'primary'
 }
 
-export interface EditEntryPayload {
+export interface EditAccountPayload {
 	type: 'primaryEmail' | 'additionalEmail' | 'identity'
 	uid: string
 	email?: string
@@ -126,6 +128,7 @@ export interface SetIdentitySignaturePayload {
 	accountType?: 'primary'
 	index: number
 	entry: IdentityEntry | NormalizedIdentityEntry
+	displayName: string
 	signature: string
 	prefix: string
 	key: string

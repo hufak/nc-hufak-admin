@@ -20,6 +20,9 @@ async function apiRequest<T>(url: string, options: ApiRequestOptions = {}): Prom
 			if (typeof errorData?.message === 'string' && errorData.message.trim() !== '') {
 				message = errorData.message;
 			}
+			if (typeof errorData?.error === 'string' && errorData.error.trim() !== '') {
+				message = `${message}: ${errorData.error.trim()}`;
+			}
 		} catch {
 			// Keep default status message when error payload is not JSON.
 		}

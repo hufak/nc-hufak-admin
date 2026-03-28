@@ -17,19 +17,21 @@ function Overview({ visibleSectionKeys }: OverviewProps): ReactElement {
 
   return (
     <section style={styles.formSection}>
-      <h2>Hufak account configuration</h2>
-      {visibleGroups.map((group) => (
-        <div key={group.label}>
-          <h3 style={styles.subheading}>{group.label}</h3>
-          <ul style={styles.overviewList}>
-            {group.sections.map((section) => (
-              <li key={section.key}>
-                <strong>{section.label}</strong>: {section.description}
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
+      <div style={styles.proseContent}>
+        <h2>Hufak account configuration</h2>
+        {visibleGroups.map((group) => (
+          <div key={group.label}>
+            <h3 style={styles.subheading}>{group.label}</h3>
+            <ul style={styles.overviewList}>
+              {group.sections.map((section) => (
+                <li key={section.key}>
+                  <strong>{section.label}</strong>: {section.description}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

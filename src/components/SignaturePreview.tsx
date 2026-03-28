@@ -7,10 +7,7 @@ interface SignaturePreviewProps {
 
 function SignaturePreview({ signature }: SignaturePreviewProps): ReactElement {
 	if (signature.startsWith(':HTML:')) {
-		const htmlContent = signature
-			.slice(6)
-			.replace(/\r\n/g, '\n')
-			.replace(/\n/g, '<br>');
+		const htmlContent = signature.slice(6);
 		return (
 			<div
 				className="hufak-signature-preview-html"
@@ -22,7 +19,7 @@ function SignaturePreview({ signature }: SignaturePreviewProps): ReactElement {
 
 	return (
 		<pre style={styles.signaturePreviewPre}>
-			{signature.trim() === '' ? 'No signature' : signature}
+			{signature}
 		</pre>
 	);
 }

@@ -3,7 +3,7 @@ export type SectionKey =
   | "overview"
   | "add-account"
   | "configure-mail"
-  | "mailbox-config"
+  | "mailbox-names"
   | "account-overview"
   | "signature-template"
   | "app-order";
@@ -13,7 +13,7 @@ const SECTION_KEYS = {
   OVERVIEW: "overview",
   ADD_ACCOUNT: "add-account",
   CONFIGURE_MAIL: "configure-mail",
-  MAILBOX_CONFIG: "mailbox-config",
+  MAILBOX_NAMES: "mailbox-names",
   ACCOUNT_OVERVIEW: "account-overview",
   SIGNATURE_TEMPLATE: "signature-template",
   APP_ORDER: "app-order",
@@ -42,8 +42,8 @@ const SECTIONS = [
     iconClass: "icon-add",
   },
   {
-    key: SECTION_KEYS.MAILBOX_CONFIG,
-    label: "shared mailboxes",
+    key: SECTION_KEYS.MAILBOX_NAMES,
+    label: "department names",
     description: "Edit the hierarchical shared mailbox config (`shared_mailboxes`).",
     iconClass: "icon-mail",
   },
@@ -80,7 +80,7 @@ const SECTION_GROUPS = [
   },
   {
     label: "Shared configuration",
-    items: [SECTION_KEYS.MAILBOX_CONFIG, SECTION_KEYS.SIGNATURE_TEMPLATE, SECTION_KEYS.APP_ORDER],
+    items: [SECTION_KEYS.MAILBOX_NAMES, SECTION_KEYS.SIGNATURE_TEMPLATE, SECTION_KEYS.APP_ORDER],
     requiresAdmin: true,
   },
 ] as const satisfies readonly {

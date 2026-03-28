@@ -3,6 +3,7 @@ import type { ChangeEvent, FormEvent, ReactElement } from 'react';
 import { apiRequest } from '../api';
 import { buildEmailFromUsername, fullNameIsValid, usernameFromFullName } from '../utils/userUtils';
 import { styles } from '../styles';
+import { MailboxCredentialsFields } from './MailboxCredentialsFields';
 import type {
 	ApporderResetResponse,
 	SnappyMailSettingsResponse,
@@ -14,10 +15,13 @@ interface AddAccountProps {
 }
 
 function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
+	const fullNamePlaceholder = 'John Doe';
+	const usernamePlaceholder = usernameFromFullName(fullNamePlaceholder);
+	const emailPlaceholder = buildEmailFromUsername(usernamePlaceholder, emailDomain);
 	const [fullName, setFullName] = useState('');
 	const [pronouns, setPronouns] = useState('');
 	const [username, setUsername] = useState('');
-	const [email, setEmail] = useState(buildEmailFromUsername('', emailDomain));
+	const [email, setEmail] = useState('');
 	const [defaultEmailAccount, setDefaultEmailAccount] = useState('');
 	const [defaultEmailAccountPassword, setDefaultEmailAccountPassword] = useState('');
 	const [isCreating, setIsCreating] = useState(false);
@@ -52,25 +56,15 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 		setIsCreateLocked(false);
 	};
 
-	const onDefaultEmailAccountChange = (event: ChangeEvent<HTMLInputElement>) => {
-		setDefaultEmailAccount(event.target.value);
-		setIsCreateLocked(false);
-	};
-
-	const onDefaultEmailAccountPasswordChange = (event: ChangeEvent<HTMLInputElement>) => {
-		setDefaultEmailAccountPassword(event.target.value);
-		setIsCreateLocked(false);
-	};
-
 	useEffect(() => {
-		setEmail(buildEmailFromUsername(username, emailDomain));
+		setEmail(username.trim() === '' ? '' : buildEmailFromUsername(username, emailDomain));
 	}, [username, emailDomain]);
 
 	const onClearForm = () => {
 		setFullName('');
 		setPronouns('');
 		setUsername('');
-		setEmail(buildEmailFromUsername('', emailDomain));
+		setEmail('');
 		setDefaultEmailAccount('');
 		setDefaultEmailAccountPassword('');
 		setCreationOutput('');
@@ -195,10 +189,12 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 
 	return (
 		<section style={styles.formSection}>
-			<h2>Create new account</h2>
+			<div style={styles.proseContent}>
+				<h2>Create new account</h2>
+			</div>
 			<form onSubmit={onSubmit} style={styles.form} autoComplete="off">
 				<label style={styles.fieldLabel} htmlFor="hufak-full-name">
-					full name
+					Full name
 				</label>
 				<input
 					id="hufak-full-name"
@@ -208,7 +204,7 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 					autoComplete="off"
 					name="hufak-create-full-name"
 					disabled={isCreating}
-					placeholder="John Doe"
+					placeholder={fullNamePlaceholder}
 					style={{ ...styles.input, ...styles.addUserInput }}
 				/>
 				{fullName.length > 0 && !isFullNameValid && (
@@ -219,20 +215,19 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 				)}
 
 				<label style={styles.fieldLabel} htmlFor="hufak-pronouns">
-					pronouns
+					Pronouns
 				</label>
 				<div style={styles.pronounsRow}>
 					<input
 						id="hufak-pronouns"
 						type="text"
 						value={pronouns}
-						onChange={onPronounsChange}
-						autoComplete="off"
-						name="hufak-create-pronouns"
-						disabled={isCreating}
-						placeholder="she/her"
-						style={{ ...styles.input, ...styles.addUserInput }}
-					/>
+					onChange={onPronounsChange}
+					autoComplete="off"
+					name="hufak-create-pronouns"
+					disabled={isCreating}
+					style={{ ...styles.input, ...styles.addUserInput }}
+				/>
 					<div style={styles.quickFillLinks}>
 						<button
 							type="button"
@@ -262,7 +257,7 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 				</div>
 
 				<label style={styles.fieldLabel} htmlFor="hufak-username">
-					username
+					Username
 				</label>
 				<input
 					id="hufak-username"
@@ -272,11 +267,12 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 					autoComplete="off"
 					name="hufak-create-username"
 					disabled={isCreating}
+					placeholder={usernamePlaceholder}
 					style={{ ...styles.input, ...styles.addUserInput }}
 				/>
 
 				<label style={styles.fieldLabel} htmlFor="hufak-email">
-					account email
+					Account email
 				</label>
 				<input
 					id="hufak-email"
@@ -286,46 +282,32 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 					autoComplete="off"
 					name="hufak-create-email"
 					disabled={isCreating}
+					placeholder={emailPlaceholder}
 					style={{ ...styles.input, ...styles.addUserInput }}
 				/>
-				<p style={styles.hintText}>Default domain from configuration: {emailDomain}</p>
-
-				<label style={styles.fieldLabel} htmlFor="hufak-default-email-account">
-					Primary mailbox (copy password over from{' '}
-					<a
-						href="https://kas.all-inkl.com/email/email-account/"
-						target="_blank"
-						rel="noreferrer"
-						style={styles.inlineLink}
-					>
-						kas.all-inkl.com
-					</a>
-					)
-				</label>
-				<div style={styles.mailboxRow}>
-					<input
-						id="hufak-default-email-account"
-						type="email"
-						value={defaultEmailAccount}
-						onChange={onDefaultEmailAccountChange}
-						autoComplete="off"
-						name="hufak-create-mailbox-email"
-						disabled={isCreating}
-						placeholder="e.g. bipol@hufak.net (optional)"
-						style={{ ...styles.input, ...styles.addUserInput, maxWidth: 'none', minWidth: 0 }}
-					/>
-					<input
-						id="hufak-default-email-account-password"
-						type="password"
-						value={defaultEmailAccountPassword}
-						onChange={onDefaultEmailAccountPasswordChange}
-						autoComplete="new-password"
-						name="hufak-create-mailbox-password"
-						disabled={isCreating}
-						placeholder="Password"
-						style={{ ...styles.input, ...styles.addUserInput, maxWidth: 'none', minWidth: 0 }}
-					/>
+				<div style={styles.proseContent}>
+					<p style={styles.hintText}>Default domain from configuration: {emailDomain}</p>
 				</div>
+
+				<MailboxCredentialsFields
+					label="Primary mailbox (optional)"
+					emailId="hufak-default-email-account"
+					passwordId="hufak-default-email-account-password"
+					emailName="hufak-create-mailbox-email"
+					passwordName="hufak-create-mailbox-password"
+					email={defaultEmailAccount}
+					password={defaultEmailAccountPassword}
+					onEmailChange={(value) => {
+						setDefaultEmailAccount(value);
+						setIsCreateLocked(false);
+					}}
+					onPasswordChange={(value) => {
+						setDefaultEmailAccountPassword(value);
+						setIsCreateLocked(false);
+					}}
+					disabled={isCreating}
+					emailPlaceholder="e.g. bipol@hufak.net"
+				/>
 
 				<div style={styles.buttonRow}>
 					<button
@@ -333,7 +315,7 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 						disabled={!isFullNameValid || isCreating || isCreateLocked}
 						style={styles.submitButton}
 					>
-						{isCreating ? 'Creating...' : 'create'}
+						{isCreating ? 'Creating...' : 'Create'}
 					</button>
 					<button
 						type="button"
@@ -341,7 +323,7 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 						disabled={isCreating}
 						style={styles.clearButton}
 					>
-						clear
+						Clear
 					</button>
 				</div>
 				<textarea

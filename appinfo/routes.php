@@ -35,9 +35,24 @@ return [
 			'verb' => 'POST',
 		],
 		[
+			'name' => 'api#deletePrimarySnappymailAccount',
+			'url' => '/api/snappymail/settings',
+			'verb' => 'DELETE',
+		],
+		[
 			'name' => 'api#deleteAdditionalSnappymailAccount',
 			'url' => '/api/snappymail/additional-account',
 			'verb' => 'DELETE',
+		],
+		[
+			'name' => 'api#addAdditionalSnappymailAccount',
+			'url' => '/api/snappymail/additional-account',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'api#setSnappymailIdentitySignature',
+			'url' => '/api/snappymail/identity-signature',
+			'verb' => 'POST',
 		],
 		[
 			'name' => 'api#getSignatureTemplate',

@@ -75,7 +75,9 @@ function AppOrderDefaults(): ReactElement {
 
 	return (
 		<section style={styles.formSection}>
-			<h2>Nextcloud app order</h2>
+			<div style={styles.proseContent}>
+				<h2>Nextcloud app order</h2>
+			</div>
 			<form onSubmit={saveApporder} style={styles.form}>
 				<textarea
 					value={apporder}

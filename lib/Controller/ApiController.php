@@ -444,6 +444,15 @@ class ApiController extends Controller {
 			$hint = 'Exit code 64 indicates invalid command usage. Check snappymail:settings argument format in your installed SnappyMail version.';
 		}
 
+		$identitiesFileMessage = '';
+		if ($process->isSuccessful()) {
+			$identitiesResult = $this->ensureIdentityFileExists(
+				$this->resolveSnappymailStoragePath($email, 'identities'),
+				$email,
+			);
+			$identitiesFileMessage = $identitiesResult['message'];
+		}
+
 		return new DataResponse([
 			'exitCode' => $process->getExitCode(),
 			'message' => $process->isSuccessful()
@@ -452,6 +461,32 @@ class ApiController extends Controller {
 			'output' => $process->getOutput(),
 			'errorOutput' => $errorOutput,
 			'hint' => $hint,
+			'identitiesFileMessage' => $identitiesFileMessage,
+		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function deletePrimarySnappymailAccount(): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse([
+				'message' => 'Admin permissions required',
+			], Http::STATUS_FORBIDDEN);
+		}
+
+		$uid = trim((string)$this->request->getParam('uid', ''));
+		if ($uid === '' || !$this->userManager->userExists($uid)) {
+			return new DataResponse([
+				'message' => 'Unknown user',
+			], Http::STATUS_BAD_REQUEST);
+		}
+
+		$this->config->deleteUserValue($uid, 'snappymail', 'snappymail-email');
+
+		return new DataResponse([
+			'message' => 'Primary e-mail account removed',
+			'uid' => $uid,
 		]);
 	}
 
@@ -539,9 +574,12 @@ class ApiController extends Controller {
 
 			$file->putContent($encoded . "\n");
 		} catch (\Throwable $exception) {
+			$errorMessage = trim($exception->getMessage());
 			return new DataResponse([
-				'message' => 'Failed to update additional accounts file',
-				'error' => $exception->getMessage(),
+				'message' => $errorMessage === ''
+					? 'Failed to update additional accounts file'
+					: sprintf('Failed to update additional accounts file: %s', $errorMessage),
+				'error' => $errorMessage,
 			], Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 
@@ -549,6 +587,345 @@ class ApiController extends Controller {
 			'message' => 'Additional account deleted',
 			'uid' => $uid,
 			'email' => $email,
+		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function addAdditionalSnappymailAccount(): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse([
+				'message' => 'Admin permissions required',
+			], Http::STATUS_FORBIDDEN);
+		}
+
+		$uid = trim((string)$this->request->getParam('uid', ''));
+		$email = trim((string)$this->request->getParam('email', ''));
+		$password = (string)$this->request->getParam('password', '');
+		if ($uid === '' || !$this->userManager->userExists($uid)) {
+			return new DataResponse([
+				'message' => 'Unknown user',
+			], Http::STATUS_BAD_REQUEST);
+		}
+		if ($email === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+			return new DataResponse([
+				'message' => 'Invalid additional account email',
+			], Http::STATUS_BAD_REQUEST);
+		}
+		if ($password === '') {
+			return new DataResponse([
+				'message' => 'Additional account password is required',
+			], Http::STATUS_BAD_REQUEST);
+		}
+
+		$primaryEmail = $this->config->getUserValue(
+			$uid,
+			'snappymail',
+			'snappymail-email',
+			'',
+		);
+		$path = $this->resolveSnappymailStoragePath($primaryEmail, 'additionalaccounts');
+		if ($path === null) {
+			return new DataResponse([
+				'message' => 'Primary account must be configured before adding additional accounts',
+			], Http::STATUS_BAD_REQUEST);
+		}
+		$parentPath = dirname($path);
+
+		try {
+			$decoded = [];
+			if ($this->rootFolder->nodeExists($path)) {
+				try {
+					$file = $this->rootFolder->get($path);
+					if (!$file instanceof File) {
+						return new DataResponse([
+							'message' => 'Additional accounts path is not a file',
+						], Http::STATUS_INTERNAL_SERVER_ERROR);
+					}
+
+					$content = (string)$file->getContent();
+					if (trim($content) !== '') {
+						$current = json_decode($content, true);
+						if (!is_array($current)) {
+							return new DataResponse([
+								'message' => 'Additional accounts file does not contain valid JSON',
+							], Http::STATUS_INTERNAL_SERVER_ERROR);
+						}
+						$decoded = $current;
+					}
+				} catch (\Throwable $exception) {
+					if (!$this->isMissingOptionalStorageException($exception)) {
+						throw $exception;
+					}
+				}
+			} else {
+				if (!$this->rootFolder->nodeExists($parentPath)) {
+					return new DataResponse([
+						'message' => 'Additional accounts storage path not found for user',
+					], Http::STATUS_NOT_FOUND);
+				}
+			}
+
+			foreach ($decoded as $accountConfig) {
+				if (!is_array($accountConfig)) {
+					continue;
+				}
+				$entryEmail = isset($accountConfig['email']) && is_scalar($accountConfig['email'])
+					? trim((string)$accountConfig['email'])
+					: '';
+				if ($entryEmail === $email) {
+					return new DataResponse([
+						'message' => 'Additional account already exists',
+					], Http::STATUS_CONFLICT);
+				}
+			}
+
+			$decoded[$email] = [
+				'email' => $email,
+				'login' => $email,
+				'pass' => $password,
+				'name' => '',
+				'smtp' => [
+					'user' => $email,
+				],
+			];
+
+			$encoded = json_encode(
+				$decoded,
+				JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES,
+			);
+			if ($encoded === false) {
+				return new DataResponse([
+					'message' => 'Failed to encode updated additional accounts JSON',
+				], Http::STATUS_INTERNAL_SERVER_ERROR);
+			}
+
+			if ($this->rootFolder->nodeExists($path)) {
+				$file = $this->rootFolder->get($path);
+				if (!$file instanceof File) {
+					return new DataResponse([
+						'message' => 'Additional accounts path is not a file',
+					], Http::STATUS_INTERNAL_SERVER_ERROR);
+				}
+				$file->putContent($encoded . "\n");
+			} else {
+				$parentFolder = $this->rootFolder->get($parentPath);
+				if (!$parentFolder instanceof \OCP\Files\Folder) {
+					return new DataResponse([
+						'message' => 'Additional accounts storage folder not found',
+					], Http::STATUS_INTERNAL_SERVER_ERROR);
+				}
+				if (!method_exists($parentFolder, 'newFile')) {
+					return new DataResponse([
+						'message' => sprintf(
+							'Additional accounts storage folder is not writable via newFile (%s)',
+							$parentPath,
+						),
+					], Http::STATUS_INTERNAL_SERVER_ERROR);
+				}
+
+				$fileName = basename($path);
+				if ($fileName === '' || $fileName === '.' || $fileName === '..') {
+					return new DataResponse([
+						'message' => sprintf(
+							'Resolved additional accounts file name is invalid (path=%s)',
+							$path,
+						),
+					], Http::STATUS_INTERNAL_SERVER_ERROR);
+				}
+
+				$createdNode = $parentFolder->newFile($fileName);
+				if (!$createdNode instanceof File) {
+					$createdNode = $this->rootFolder->get($path);
+					if (!$createdNode instanceof File) {
+						return new DataResponse([
+							'message' => sprintf(
+								'Additional accounts file was created but could not be reopened as a file (path=%s)',
+								$path,
+							),
+						], Http::STATUS_INTERNAL_SERVER_ERROR);
+					}
+				}
+				$createdNode->putContent($encoded . "\n");
+			}
+		} catch (\Throwable $exception) {
+			$errorMessage = trim($exception->getMessage());
+			$exceptionClass = $exception::class;
+			$details = [
+				sprintf('uid=%s', $uid),
+				sprintf('primaryEmail=%s', $primaryEmail !== '' ? $primaryEmail : '(empty)'),
+				sprintf('storagePath=%s', $path),
+				sprintf('parentPath=%s', $parentPath),
+				sprintf('pathExists=%s', $this->rootFolder->nodeExists($path) ? 'yes' : 'no'),
+				sprintf('parentExists=%s', $this->rootFolder->nodeExists($parentPath) ? 'yes' : 'no'),
+				sprintf('exception=%s', $exceptionClass),
+			];
+			if ($errorMessage !== '') {
+				$details[] = sprintf('detail=%s', $errorMessage);
+			}
+			return new DataResponse([
+				'message' => sprintf(
+					'Failed to update additional accounts file (%s)',
+					implode('; ', $details),
+				),
+				'error' => $errorMessage,
+				'exceptionClass' => $exceptionClass,
+				'uid' => $uid,
+				'primaryEmail' => $primaryEmail,
+				'storagePath' => $path,
+				'parentPath' => $parentPath,
+				'pathExists' => $this->rootFolder->nodeExists($path),
+				'parentExists' => $this->rootFolder->nodeExists($parentPath),
+			], Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+
+		return new DataResponse([
+			'message' => sprintf(
+				'Additional account added. %s',
+				$this->ensureIdentityFileExists(
+					$this->resolveAdditionalAccountIdentitiesPath($primaryEmail, $email),
+					$email,
+				)['message'],
+			),
+			'uid' => $uid,
+			'email' => $email,
+		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function setSnappymailIdentitySignature(): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse([
+				'message' => 'Admin permissions required',
+			], Http::STATUS_FORBIDDEN);
+		}
+
+		$uid = trim((string)$this->request->getParam('uid', ''));
+		$index = $this->request->getParam('index', null);
+		$signature = (string)$this->request->getParam('signature', '');
+		$displayName = trim((string)$this->request->getParam('displayName', ''));
+		$accountType = trim((string)$this->request->getParam('accountType', ''));
+		$accountKey = trim((string)$this->request->getParam('accountKey', ''));
+		if ($uid === '' || !$this->userManager->userExists($uid)) {
+			return new DataResponse([
+				'message' => 'Unknown user',
+			], Http::STATUS_BAD_REQUEST);
+		}
+		if (!is_numeric($index) || (int)$index < 0) {
+			return new DataResponse([
+				'message' => 'Invalid identity index',
+			], Http::STATUS_BAD_REQUEST);
+		}
+		if ($accountType !== 'primary' && $accountKey === '') {
+			return new DataResponse([
+				'message' => 'accountKey is required for non-primary identities',
+			], Http::STATUS_BAD_REQUEST);
+		}
+
+		$primaryEmail = $this->config->getUserValue(
+			$uid,
+			'snappymail',
+			'snappymail-email',
+			'',
+		);
+		$path = $accountType === 'primary'
+			? $this->resolveSnappymailStoragePath($primaryEmail, 'identities')
+			: $this->resolveAdditionalAccountIdentitiesPath($primaryEmail, $accountKey);
+		if ($path === null || !$this->rootFolder->nodeExists($path)) {
+			return new DataResponse([
+				'message' => 'Identities file not found',
+			], Http::STATUS_NOT_FOUND);
+		}
+
+		try {
+			$file = $this->rootFolder->get($path);
+			if (!$file instanceof File) {
+				return new DataResponse([
+					'message' => 'Identities path is not a file',
+				], Http::STATUS_INTERNAL_SERVER_ERROR);
+			}
+			$content = (string)$file->getContent();
+			$decoded = json_decode($content, true);
+			if (!is_array($decoded)) {
+				return new DataResponse([
+					'message' => 'Identities file does not contain valid JSON',
+				], Http::STATUS_INTERNAL_SERVER_ERROR);
+			}
+
+			$identityIndex = (int)$index;
+			if (array_is_list($decoded)) {
+				if (!array_key_exists($identityIndex, $decoded) || !is_array($decoded[$identityIndex])) {
+					return new DataResponse([
+						'message' => 'Identity not found',
+					], Http::STATUS_NOT_FOUND);
+				}
+				if (array_key_exists('signature', $decoded[$identityIndex])) {
+					$decoded[$identityIndex]['signature'] = $signature;
+				} elseif (array_key_exists('Signature', $decoded[$identityIndex])) {
+					$decoded[$identityIndex]['Signature'] = $signature;
+				} else {
+					$decoded[$identityIndex]['signature'] = $signature;
+				}
+				if (array_key_exists('Name', $decoded[$identityIndex])) {
+					$decoded[$identityIndex]['Name'] = $displayName;
+				} elseif (array_key_exists('name', $decoded[$identityIndex])) {
+					$decoded[$identityIndex]['name'] = $displayName;
+				} else {
+					$decoded[$identityIndex]['Name'] = $displayName;
+				}
+				$decoded[$identityIndex]['SignatureInsertBefore'] = true;
+			} else {
+				$keys = array_keys($decoded);
+				if (!array_key_exists($identityIndex, $keys) || !is_array($decoded[$keys[$identityIndex]])) {
+					return new DataResponse([
+						'message' => 'Identity not found',
+					], Http::STATUS_NOT_FOUND);
+				}
+				$identityKey = $keys[$identityIndex];
+				if (array_key_exists('signature', $decoded[$identityKey])) {
+					$decoded[$identityKey]['signature'] = $signature;
+				} elseif (array_key_exists('Signature', $decoded[$identityKey])) {
+					$decoded[$identityKey]['Signature'] = $signature;
+				} else {
+					$decoded[$identityKey]['signature'] = $signature;
+				}
+				if (array_key_exists('Name', $decoded[$identityKey])) {
+					$decoded[$identityKey]['Name'] = $displayName;
+				} elseif (array_key_exists('name', $decoded[$identityKey])) {
+					$decoded[$identityKey]['name'] = $displayName;
+				} else {
+					$decoded[$identityKey]['Name'] = $displayName;
+				}
+				$decoded[$identityKey]['SignatureInsertBefore'] = true;
+			}
+
+			$encoded = json_encode(
+				$decoded,
+				JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES,
+			);
+			if ($encoded === false) {
+				return new DataResponse([
+					'message' => 'Failed to encode updated identities JSON',
+				], Http::STATUS_INTERNAL_SERVER_ERROR);
+			}
+
+			$file->putContent($encoded . "\n");
+		} catch (\Throwable $exception) {
+			return new DataResponse([
+				'message' => 'Failed to update identities file',
+				'error' => $exception->getMessage(),
+			], Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+
+		return new DataResponse([
+			'message' => 'Identity signature updated',
+			'uid' => $uid,
+			'index' => (int)$index,
+			'accountType' => $accountType === 'primary' ? 'primary' : 'additional',
+			'accountKey' => $accountKey,
 		]);
 	}
 
@@ -620,10 +997,15 @@ class ApiController extends Controller {
 		}
 
 		$configuredApporder = $this->getConfiguredApporder();
+		$selectedUid = trim((string)$this->request->getParam('uid', ''));
+		$includePronoun = trim((string)$this->request->getParam('includePronoun', '')) === '1';
 		$users = [];
 		$disabledUsers = [];
-		$this->userManager->callForAllUsers(function ($user) use (&$users, &$disabledUsers, $configuredApporder): void {
+		$this->userManager->callForAllUsers(function ($user) use (&$users, &$disabledUsers, $configuredApporder, $selectedUid, $includePronoun): void {
 			$uid = $user->getUID();
+			if ($selectedUid !== '' && $uid !== $selectedUid) {
+				return;
+			}
 			if (!$user->isEnabled()) {
 				$disabledUsers[] = [
 					'uid' => $uid,
@@ -667,6 +1049,7 @@ class ApiController extends Controller {
 			$users[] = [
 				'uid' => $uid,
 				'accountName' => (string)$user->getDisplayName(),
+				'pronoun' => $includePronoun ? $this->resolveUserPronoun($uid) : '',
 				'lastActivityTs' => $user->getLastLogin(),
 				'failedLoginAttempts' => $this->resolveFailedLoginAttempts($user),
 				'primaryEmail' => $primaryEmail,
@@ -872,8 +1255,108 @@ class ApiController extends Controller {
 			$decoded = json_decode($content, true);
 			return is_array($decoded) ? $decoded : null;
 		} catch (\Throwable $exception) {
+			if ($this->isMissingOptionalStorageException($exception)) {
+				$error = sprintf('Path does not exist: %s', $candidatePath);
+				return null;
+			}
 			$error = sprintf('Failed to load %s: %s', $candidatePath, $exception->getMessage());
 			return null;
+		}
+	}
+
+	private function isMissingOptionalStorageException(\Throwable $exception): bool {
+		$message = strtolower(trim($exception->getMessage()));
+		$exceptionClass = $exception::class;
+		if ($message === '') {
+			return $exceptionClass === \OCP\Files\GenericFileException::class;
+		}
+
+		return str_contains($message, 'no such file or directory')
+			|| str_contains($message, 'failed to open stream');
+	}
+
+	private function ensureIdentityFileExists(?string $path, string $email): array {
+		if ($path === null) {
+			return [
+				'created' => false,
+				'message' => 'Could not determine identities file path.',
+			];
+		}
+
+		try {
+			if ($this->rootFolder->nodeExists($path)) {
+				return [
+					'created' => false,
+					'message' => 'Identity file already existed.',
+				];
+			}
+
+			$parentPath = dirname($path);
+			if (!$this->rootFolder->nodeExists($parentPath)) {
+				$baseFolderPath = dirname($parentPath);
+				$folderName = basename($parentPath);
+				if (
+					$folderName === ''
+					|| $folderName === '.'
+					|| $folderName === '..'
+					|| !$this->rootFolder->nodeExists($baseFolderPath)
+				) {
+					return [
+						'created' => false,
+						'message' => 'Identity file was not created because the account folder does not exist.',
+					];
+				}
+
+				$baseFolder = $this->rootFolder->get($baseFolderPath);
+				if (!method_exists($baseFolder, 'newFolder')) {
+					return [
+						'created' => false,
+						'message' => 'Identity file was not created because the parent storage folder is invalid.',
+					];
+				}
+
+				$createdFolder = $baseFolder->newFolder($folderName);
+				if (!method_exists($createdFolder, 'newFile')) {
+					return [
+						'created' => false,
+						'message' => 'Identity file was not created because the account folder could not be created.',
+					];
+				}
+			}
+
+			$payload = json_encode([
+				'---' => [
+					'Email' => $email,
+					'Signature' => 'foo',
+					'SignatureInsertBefore' => true,
+				],
+			], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+			if ($payload === false) {
+				return [
+					'created' => false,
+					'message' => 'Identity file was not created because the default content could not be encoded.',
+				];
+			}
+
+			$folder = $this->rootFolder->get($parentPath);
+			if (!method_exists($folder, 'newFile')) {
+				return [
+					'created' => false,
+					'message' => 'Identity file was not created because the account folder is invalid.',
+				];
+			}
+
+			$folder->newFile(basename($path), $payload);
+
+			return [
+				'created' => true,
+				'message' => 'Created new identity file.',
+			];
+		} catch (\Throwable $exception) {
+			return [
+				'created' => false,
+				'message' => 'Identity file was not created: ' . $exception->getMessage(),
+			];
 		}
 	}
 
@@ -898,6 +1381,27 @@ class ApiController extends Controller {
 			. $fileName;
 	}
 
+	private function resolveAdditionalAccountIdentitiesPath(string $primaryEmail, string $additionalAccount): ?string {
+		$email = trim($primaryEmail);
+		$additionalAccount = trim($additionalAccount);
+		if ($email === '' || $additionalAccount === '' || !str_contains($email, '@')) {
+			return null;
+		}
+
+		[$prefix, $domain] = explode('@', $email, 2);
+		$prefix = trim($prefix);
+		$domain = strtolower(trim($domain));
+		if ($prefix === '' || $domain === '') {
+			return null;
+		}
+
+		return 'appdata_snappymail/_data_/_default_/storage/'
+			. $domain . '/'
+			. $prefix . '/'
+			. $additionalAccount . '/'
+			. 'identities';
+	}
+
 	private function normalizeIdentityRecords(?array $identities): ?array {
 		if ($identities === null || !is_array($identities)) {
 			return $identities;
@@ -918,6 +1422,60 @@ class ApiController extends Controller {
 		}
 
 		return $entries;
+	}
+
+	private function resolveUserPronoun(string $uid): string {
+		$phpBinary = $this->resolveCompatiblePhpBinary();
+		if ($phpBinary === null) {
+			return '';
+		}
+
+		try {
+			$process = new Process([
+				$phpBinary,
+				\OC::$SERVERROOT . '/occ',
+				'user:profile',
+				$uid,
+			], \OC::$SERVERROOT);
+			$process->setTimeout(60);
+			$process->run();
+
+			$errorOutput = $process->getErrorOutput();
+			if ($process->getExitCode() !== 0 && str_contains($errorOutput, 'opcache.file_cache_only')) {
+				$opcacheDir = sys_get_temp_dir() . '/hufak-opcache';
+				if (!is_dir($opcacheDir) && !mkdir($opcacheDir, 0770, true) && !is_dir($opcacheDir)) {
+					return '';
+				}
+
+				$process = new Process([
+					$phpBinary,
+					'-d',
+					'opcache.file_cache=' . $opcacheDir,
+					'-d',
+					'opcache.file_cache_only=0',
+					'-d',
+					'opcache.enable_cli=0',
+					\OC::$SERVERROOT . '/occ',
+					'user:profile',
+					$uid,
+				], \OC::$SERVERROOT);
+				$process->setTimeout(60);
+				$process->run();
+			}
+
+			if (!$process->isSuccessful()) {
+				return '';
+			}
+
+			$output = $process->getOutput();
+			if (preg_match('/^\s*-\s*pronouns:\s*(.+)\s*$/mi', $output, $matches) === 1) {
+				return trim($matches[1]);
+			}
+		} catch (\Throwable) {
+			return '';
+		}
+
+		return '';
 	}
 
 	private function normalizeIdentityRecord(mixed $identity): ?array {

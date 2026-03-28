@@ -24,6 +24,7 @@ type AdminStatus = 'unknown' | 'admin' | 'non-admin'
 
 interface AdminPanelProps {
 	adminStatus: AdminStatus
+	adminStatusError: string
 	emailDomain: string
 	setEmailDomain: Dispatch<SetStateAction<string>>
 }
@@ -33,7 +34,7 @@ const MOBILE_BREAKPOINT = 1024;
 const MDI_MENU = 'M3,6H21V8H3V6M3,11H21V13H3V11M3,16H21V18H3V16Z';
 const MDI_MENU_OPEN = 'M21,15.61L19.59,17L14.58,12L19.59,7L21,8.39L17.44,12L21,15.61M3,6H16V8H3V6M3,13V11H13V13H3M3,18V16H16V18H3Z';
 
-function AdminPanel({ adminStatus, emailDomain, setEmailDomain }: AdminPanelProps): ReactElement {
+function AdminPanel({ adminStatus, adminStatusError, emailDomain, setEmailDomain }: AdminPanelProps): ReactElement {
 	const [selectedSection, setSelectedSection] = useState(() => parseSectionFromUrl());
 	const [configureMailUid, setConfigureMailUid] = useState(() =>
 		getConfigureMailUidFromUrl(),
@@ -114,7 +115,7 @@ function AdminPanel({ adminStatus, emailDomain, setEmailDomain }: AdminPanelProp
 		content = <AddAccount emailDomain={emailDomain} />;
 	} else if (currentSection === SECTION_KEYS.CONFIGURE_MAIL) {
 		content = <ConfigureMail preselectedUid={configureMailUid} />;
-	} else if (currentSection === SECTION_KEYS.MAILBOX_CONFIG) {
+	} else if (currentSection === SECTION_KEYS.MAILBOX_NAMES) {
 		content = <MailboxConfig emailDomain={emailDomain} setEmailDomain={setEmailDomain} />;
 	} else if (currentSection === SECTION_KEYS.ACCOUNT_OVERVIEW) {
 		content = <AccountOverview onEditMailbox={openConfigureMailForUser} />;
@@ -182,6 +183,13 @@ function AdminPanel({ adminStatus, emailDomain, setEmailDomain }: AdminPanelProp
 							];
 						})}
 					</ul>
+					{adminStatusError ? (
+						<div className="hufak-navigation-footer" data-v-d5ce90cd="">
+							<p style={styles.validationMessage}>
+								Failed to check administrator privileges: {adminStatusError}
+							</p>
+						</div>
+					) : null}
 				</nav>
 				<div className="app-navigation-toggle-wrapper" data-v-5a15295d="">
 					<button

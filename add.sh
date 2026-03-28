@@ -1,3 +1,3 @@
 #!/bin/sh
-git add css js package.json src && git can && git pf
+git add appinfo css js lib package.json src && git can && git pf
 

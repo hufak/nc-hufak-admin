@@ -67,6 +67,15 @@ export interface UserCreateResponse {
 	welcomeEmailError?: string
 }
 
+export interface FreescoutUserResponse {
+	message?: string
+	email?: string
+	freescoutRoot?: string
+	exitCode?: number | string | null
+	output?: string
+	errorOutput?: string
+}
+
 export interface ApporderResetResponse {
 	message?: string
 }

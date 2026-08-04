@@ -6,6 +6,7 @@ import { styles } from '../styles';
 import { MailboxCredentialsFields } from './MailboxCredentialsFields';
 import type {
 	ApporderResetResponse,
+	FreescoutUserResponse,
 	SnappyMailSettingsResponse,
 	UserCreateResponse,
 } from '../types';
@@ -25,6 +26,7 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 	const [defaultEmailAccount, setDefaultEmailAccount] = useState('');
 	const [defaultEmailAccountPassword, setDefaultEmailAccountPassword] = useState('');
 	const [sendWelcomeEmail, setSendWelcomeEmail] = useState(true);
+	const [createFreescoutUser, setCreateFreescoutUser] = useState(false);
 	const [isCreating, setIsCreating] = useState(false);
 	const [isCreateLocked, setIsCreateLocked] = useState(false);
 	const [creationOutput, setCreationOutput] = useState('');
@@ -69,6 +71,7 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 		setDefaultEmailAccount('');
 		setDefaultEmailAccountPassword('');
 		setSendWelcomeEmail(true);
+		setCreateFreescoutUser(false);
 		setCreationOutput('');
 		setIsCreateLocked(false);
 	};
@@ -84,7 +87,9 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 
 		const shouldConfigureDefaultMailbox =
 			defaultEmailAccount.trim() !== '' && defaultEmailAccountPassword !== '';
-		const totalSteps = shouldConfigureDefaultMailbox ? 3 : 2;
+		const totalSteps = 2 + (shouldConfigureDefaultMailbox ? 1 : 0) + (createFreescoutUser ? 1 : 0);
+		const mailboxStep = 3;
+		const freescoutStep = shouldConfigureDefaultMailbox ? 4 : 3;
 		const createdUid = String(username || '').trim();
 		let allStepsSucceeded = true;
 
@@ -141,7 +146,7 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 			}
 
 			if (shouldConfigureDefaultMailbox) {
-				lines.push(`⏳ Step 3/${totalSteps}: Setting primary account mailbox...`);
+				lines.push(`⏳ Step ${mailboxStep}/${totalSteps}: Setting primary account mailbox...`);
 				try {
 					const mailboxBody = new URLSearchParams({
 						uid: actualCreatedUid,
@@ -170,13 +175,59 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 						messageParts.push(`Error output: ${errorOutput}`);
 					}
 					lines.push(
-						`✅ Step 3/${totalSteps}: Primary account mailbox configured. ${messageParts.join(' | ')}`,
+						`✅ Step ${mailboxStep}/${totalSteps}: Primary account mailbox configured. ${messageParts.join(' | ')}`,
 					);
-				} catch (step3Err) {
+				} catch (mailboxErr) {
 					allStepsSucceeded = false;
 					lines.push(
-						`❌ Step 3/${totalSteps}: Failed to set primary account mailbox: ${
-							step3Err instanceof Error ? step3Err.message : 'Unknown error'
+						`❌ Step ${mailboxStep}/${totalSteps}: Failed to set primary account mailbox: ${
+							mailboxErr instanceof Error ? mailboxErr.message : 'Unknown error'
+						}`,
+					);
+				}
+			}
+
+			if (createFreescoutUser) {
+				lines.push(`⏳ Step ${freescoutStep}/${totalSteps}: Pre-creating FreeScout user...`);
+				try {
+					const freescoutBody = new URLSearchParams({
+						email,
+						fullName,
+					});
+					const freescoutData = await apiRequest<FreescoutUserResponse>(
+						OC.generateUrl('/apps/hufak/api/freescout/user'),
+						{
+							method: 'POST',
+							headers: {
+								'content-type':
+									'application/x-www-form-urlencoded;charset=UTF-8',
+							},
+							body: freescoutBody,
+						},
+					);
+					const freescoutOutput = String(freescoutData.output || '').trim();
+					const freescoutErrorOutput = String(freescoutData.errorOutput || '').trim();
+					const freescoutSucceeded = freescoutData.exitCode === 0;
+					const freescoutParts = [`Exit code: ${freescoutData.exitCode ?? ''}`];
+					if (freescoutOutput) {
+						freescoutParts.push(`Output: ${freescoutOutput}`);
+					}
+					if (freescoutErrorOutput) {
+						freescoutParts.push(`Error output: ${freescoutErrorOutput}`);
+					}
+					if (!freescoutSucceeded) {
+						allStepsSucceeded = false;
+					}
+					lines.push(
+						`${freescoutSucceeded ? '✅' : '❌'} Step ${freescoutStep}/${totalSteps}: ${
+							freescoutData.message || 'FreeScout user creation finished'
+						}. ${freescoutParts.join(' | ')}`,
+					);
+				} catch (freescoutErr) {
+					allStepsSucceeded = false;
+					lines.push(
+						`❌ Step ${freescoutStep}/${totalSteps}: Failed to pre-create FreeScout user: ${
+							freescoutErr instanceof Error ? freescoutErr.message : 'Unknown error'
 						}`,
 					);
 				}
@@ -355,6 +406,28 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 						</span>
 					</label>
 				</div>
+
+				<label style={styles.radioOption} htmlFor="hufak-create-freescout-user">
+					<input
+						id="hufak-create-freescout-user"
+						type="checkbox"
+						name="hufak-create-freescout-user"
+						checked={createFreescoutUser}
+						onChange={(event) => {
+							setCreateFreescoutUser(event.target.checked);
+							setIsCreateLocked(false);
+						}}
+						disabled={isCreating}
+					/>
+					<span>
+						pre-create FreeScout user (experimental)
+						<span style={styles.hintText}>
+							{' '}
+							(runs artisan freescout:create-user, so the account exists before
+							the first OAuth login — the module matches it by account email)
+						</span>
+					</span>
+				</label>
 
 				<details style={styles.collapsibleSection}>
 					<summary style={styles.collapsibleSummary}>Snappymail settings</summary>

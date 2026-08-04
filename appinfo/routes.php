@@ -100,6 +100,11 @@ return [
 			'verb' => 'POST',
 		],
 		[
+			'name' => 'api#createFreescoutUser',
+			'url' => '/api/freescout/user',
+			'verb' => 'POST',
+		],
+		[
 			'name' => 'api#promoteUserApporder',
 			'url' => '/api/accounts/{uid}/apporder/promote',
 			'verb' => 'POST',

@@ -23,6 +23,8 @@ class ApiController extends Controller {
 	private const CONFIG_EMAIL_DOMAIN = 'email_domain';
 	private const CONFIG_APPORDER = 'apporder';
 	private const CONFIG_SHARED_MAILBOXES = 'shared_mailboxes';
+	private const CONFIG_FREESCOUT_PATH = 'freescout_path';
+	private const DEFAULT_FREESCOUT_PATH = '../ticket.hufak.net/freescout-dist';
 	private const DEFAULT_EMAIL_DOMAIN = 'hufak.net';
 	private const APPDATA_FOLDER_SETTINGS = 'settings';
 	private const APPDATA_FILE_SIGNATURE_TEMPLATE = 'signature_template.txt';
@@ -265,6 +267,101 @@ class ApiController extends Controller {
 		return new DataResponse([
 			'message' => 'User apporder reset to defaults',
 			'uid' => $uid,
+		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function createFreescoutUser(): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse([
+				'message' => 'Admin permissions required',
+			], Http::STATUS_FORBIDDEN);
+		}
+
+		$email = trim((string)$this->request->getParam('email', ''));
+		$fullName = trim((string)$this->request->getParam('fullName', ''));
+		if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+			return new DataResponse([
+				'message' => 'Invalid email address',
+			], Http::STATUS_BAD_REQUEST);
+		}
+
+		// the module matches FreeScout users by sanitized (lowercased) email
+		$email = strtolower($email);
+		$nameParts = preg_split('/\s+/', $fullName, 2) ?: [];
+		$firstName = trim((string)($nameParts[0] ?? ''));
+		$lastName = trim((string)($nameParts[1] ?? ''));
+		if ($firstName === '') {
+			return new DataResponse([
+				'message' => 'A full name is required to create a FreeScout user',
+			], Http::STATUS_BAD_REQUEST);
+		}
+		if ($lastName === '') {
+			// FreeScout requires a last name, the OAuth module uses the same fallback
+			$lastName = 'User';
+		}
+
+		$freescoutRoot = $this->resolveFreescoutRoot();
+		if ($freescoutRoot === null) {
+			return new DataResponse([
+				'message' => sprintf(
+					'FreeScout installation not found at "%s" (set it with: occ config:app:set %s %s --value=<path>)',
+					$this->getConfiguredFreescoutPath(),
+					$this->appName,
+					self::CONFIG_FREESCOUT_PATH,
+				),
+			], Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+
+		$phpBinary = $this->resolveCompatiblePhpBinary();
+		if ($phpBinary === null) {
+			return new DataResponse([
+				'message' => 'No compatible PHP CLI binary (>= 8.1) found for artisan execution',
+			], Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+
+		try {
+			// the account signs in through the OAuth module, so this password is
+			// never handed out - it only satisfies the command's requirements
+			$password = bin2hex(random_bytes(16));
+		} catch (\Throwable) {
+			return new DataResponse([
+				'message' => 'Failed to generate a random password',
+			], Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+
+		try {
+			$process = new Process([
+				$phpBinary,
+				$freescoutRoot . '/artisan',
+				'freescout:create-user',
+				'--role=user',
+				'--firstName=' . $firstName,
+				'--lastName=' . $lastName,
+				'--email=' . $email,
+				'--password=' . $password,
+				'--no-interaction',
+			], $freescoutRoot);
+			$process->setTimeout(120);
+			$process->run();
+		} catch (\Throwable $exception) {
+			return new DataResponse([
+				'message' => 'Failed to execute artisan command',
+				'error' => $exception->getMessage(),
+			], Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+
+		return new DataResponse([
+			'message' => $process->isSuccessful()
+				? sprintf('FreeScout user "%s" created', $email)
+				: 'FreeScout user creation failed',
+			'email' => $email,
+			'freescoutRoot' => $freescoutRoot,
+			'exitCode' => $process->getExitCode(),
+			'output' => $process->getOutput(),
+			'errorOutput' => $process->getErrorOutput(),
 		]);
 	}
 
@@ -1190,6 +1287,29 @@ class ApiController extends Controller {
 
 	private function getStoredEmailDomain(): string {
 		return $this->config->getAppValue($this->appName, self::CONFIG_EMAIL_DOMAIN, self::DEFAULT_EMAIL_DOMAIN);
+	}
+
+	private function getConfiguredFreescoutPath(): string {
+		$configured = trim($this->config->getAppValue(
+			$this->appName,
+			self::CONFIG_FREESCOUT_PATH,
+			self::DEFAULT_FREESCOUT_PATH,
+		));
+		return $configured === '' ? self::DEFAULT_FREESCOUT_PATH : $configured;
+	}
+
+	private function resolveFreescoutRoot(): ?string {
+		$path = $this->getConfiguredFreescoutPath();
+		if (!str_starts_with($path, '/')) {
+			$path = \OC::$SERVERROOT . '/' . $path;
+		}
+
+		$resolved = realpath($path);
+		if ($resolved === false || !is_file($resolved . '/artisan')) {
+			return null;
+		}
+
+		return $resolved;
 	}
 
 	private function getConfiguredApporder(): string {

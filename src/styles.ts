@@ -107,6 +107,18 @@ const styles: Record<string, CSSProperties> = {
 		alignItems: 'center',
 		gap: '10px',
 	},
+	radioGroup: {
+		display: 'grid',
+		gap: '6px',
+	},
+	radioOption: {
+		display: 'flex',
+		alignItems: 'start',
+		gap: '8px',
+		fontSize: '14px',
+		color: 'var(--color-main-text)',
+		cursor: 'pointer',
+	},
 	collapsibleSection: {
 		border: '1px solid var(--color-border)',
 		borderRadius: '8px',

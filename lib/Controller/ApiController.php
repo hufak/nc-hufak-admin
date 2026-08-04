@@ -322,6 +322,7 @@ class ApiController extends Controller {
 		$pronoun = trim((string)$this->request->getParam('pronoun', ''));
 		$username = strtolower(trim((string)$this->request->getParam('username', '')));
 		$email = trim((string)$this->request->getParam('email', ''));
+		$sendWelcomeEmail = trim((string)$this->request->getParam('sendWelcomeEmail', '')) === '1';
 
 		if (!preg_match('/^([A-Z][A-Za-z]*)( [A-Z][A-Za-z]*)+$/', $fullName)) {
 			return new DataResponse([
@@ -391,10 +392,49 @@ class ApiController extends Controller {
 			$this->config->setUserValue($username, $this->appName, 'pronoun', $pronoun);
 		}
 
+		if ($sendWelcomeEmail) {
+			$mailError = null;
+			try {
+				$mailHelper = \OCP\Server::get(\OCA\Settings\Mailer\NewUserMailHelper::class);
+				// true: include a password reset token, so the account holder sets
+				// their own password instead of us mailing the generated one
+				$mailHelper->sendMail($user, $mailHelper->generateTemplate($user, true));
+			} catch (\Throwable $exception) {
+				$mailError = $exception->getMessage();
+			}
+
+			if ($mailError === null) {
+				return new DataResponse([
+					'message' => sprintf(
+						'User "%s" created successfully, welcome email sent to %s',
+						$username,
+						$email,
+					),
+					'username' => $username,
+					'welcomeEmailSent' => true,
+				]);
+			}
+
+			// keep the account, but fall back to handing out the generated password
+			return new DataResponse([
+				'message' => sprintf(
+					'User "%s" created successfully, but sending the welcome email to %s failed: %s',
+					$username,
+					$email,
+					$mailError,
+				),
+				'username' => $username,
+				'password' => $password,
+				'welcomeEmailSent' => false,
+				'welcomeEmailError' => $mailError,
+			]);
+		}
+
 		return new DataResponse([
 			'message' => sprintf('User "%s" created successfully', $username),
 			'username' => $username,
 			'password' => $password,
+			'welcomeEmailSent' => false,
 		]);
 	}
 

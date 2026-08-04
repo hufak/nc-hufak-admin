@@ -63,6 +63,8 @@ export interface UserCreateResponse {
 	username?: string
 	message?: string
 	password?: string
+	welcomeEmailSent?: boolean
+	welcomeEmailError?: string
 }
 
 export interface ApporderResetResponse {

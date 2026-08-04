@@ -24,6 +24,7 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 	const [email, setEmail] = useState('');
 	const [defaultEmailAccount, setDefaultEmailAccount] = useState('');
 	const [defaultEmailAccountPassword, setDefaultEmailAccountPassword] = useState('');
+	const [sendWelcomeEmail, setSendWelcomeEmail] = useState(true);
 	const [isCreating, setIsCreating] = useState(false);
 	const [isCreateLocked, setIsCreateLocked] = useState(false);
 	const [creationOutput, setCreationOutput] = useState('');
@@ -67,6 +68,7 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 		setEmail('');
 		setDefaultEmailAccount('');
 		setDefaultEmailAccountPassword('');
+		setSendWelcomeEmail(true);
 		setCreationOutput('');
 		setIsCreateLocked(false);
 	};
@@ -96,6 +98,7 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 				pronoun: pronouns,
 				username,
 				email,
+				sendWelcomeEmail: sendWelcomeEmail ? '1' : '0',
 			});
 			const data = await apiRequest<UserCreateResponse>(OC.generateUrl('/apps/hufak/api/accounts'), {
 				method: 'POST',
@@ -108,6 +111,11 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 			const lines = [
 				`✅ Step 1/${totalSteps}: ${data.message || `Account "${actualCreatedUid}" created successfully`}`,
 			];
+			if (data.welcomeEmailSent) {
+				lines.push(`📧 Welcome email with password setup link sent to ${email}`);
+			} else if (data.welcomeEmailError) {
+				lines.push(`⚠️ Welcome email to ${email} could not be sent: ${data.welcomeEmailError}`);
+			}
 			if (data.password) {
 				lines.push(`🔐 Generated password: ${data.password}`);
 			}
@@ -301,6 +309,51 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 				</div>
 				<div style={styles.proseContent}>
 					<p style={styles.hintText}>Default domain from configuration: {emailDomain}</p>
+				</div>
+
+				<span style={styles.fieldLabel}>Login details</span>
+				<div style={styles.radioGroup}>
+					<label style={styles.radioOption} htmlFor="hufak-login-welcome-email">
+						<input
+							id="hufak-login-welcome-email"
+							type="radio"
+							name="hufak-create-login-delivery"
+							checked={sendWelcomeEmail}
+							onChange={() => {
+								setSendWelcomeEmail(true);
+								setIsCreateLocked(false);
+							}}
+							disabled={isCreating}
+						/>
+						<span>
+							Send login details to the account email with a welcome email
+							<span style={styles.hintText}>
+								{' '}
+								(the email contains the username and a link to set a password —
+								Nextcloud never sends passwords by email)
+							</span>
+						</span>
+					</label>
+					<label style={styles.radioOption} htmlFor="hufak-login-random-password">
+						<input
+							id="hufak-login-random-password"
+							type="radio"
+							name="hufak-create-login-delivery"
+							checked={!sendWelcomeEmail}
+							onChange={() => {
+								setSendWelcomeEmail(false);
+								setIsCreateLocked(false);
+							}}
+							disabled={isCreating}
+						/>
+						<span>
+							Generate a random password and show it here
+							<span style={styles.hintText}>
+								{' '}
+								(no email is sent; hand the password over yourself)
+							</span>
+						</span>
+					</label>
 				</div>
 
 				<details style={styles.collapsibleSection}>

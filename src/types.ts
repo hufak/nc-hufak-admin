@@ -31,6 +31,8 @@ export interface MailboxUser {
 	apporderMatches?: boolean
 	apporderDiff?: JsonObject | JsonValue[] | null
 	apporder?: string
+	dashboardLayout?: string
+	dashboardLayoutMatches?: boolean
 	lastActivityTs?: number | string | null
 	failedLoginAttempts?: number | null
 	additionalAccounts?: Record<string, AdditionalAccountEntry> | null
@@ -57,6 +59,7 @@ export interface UserStatusResponse {
 	users?: MailboxUser[]
 	disabledUsers?: DisabledUser[]
 	defaultApporder?: string
+	defaultDashboardLayout?: string
 }
 
 export interface UserCreateResponse {
@@ -95,6 +98,11 @@ export interface SignatureTemplateResponse {
 
 export interface ApporderSettingsResponse {
 	apporder?: string
+	message?: string
+}
+
+export interface DashboardLayoutSettingsResponse {
+	dashboardLayout?: string
 	message?: string
 }
 

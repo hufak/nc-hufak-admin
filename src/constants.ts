@@ -6,7 +6,8 @@ export type SectionKey =
   | "mailbox-names"
   | "account-overview"
   | "signature-template"
-  | "app-order";
+  | "app-order"
+  | "dashboard-widgets";
 
 const SECTION_KEYS = {
   STUDENT_STATS: "student-stats",
@@ -17,6 +18,7 @@ const SECTION_KEYS = {
   ACCOUNT_OVERVIEW: "account-overview",
   SIGNATURE_TEMPLATE: "signature-template",
   APP_ORDER: "app-order",
+  DASHBOARD_WIDGETS: "dashboard-widgets",
 } as const satisfies Record<string, SectionKey>;
 
 const VALID_SECTION_KEYS = Object.values(SECTION_KEYS) as SectionKey[];
@@ -54,6 +56,12 @@ const SECTIONS = [
     iconClass: "icon-rename",
   },
   {
+    key: SECTION_KEYS.DASHBOARD_WIDGETS,
+    label: "nextcloud dashboard widgets",
+    description: "Edit the global default dashboard widget layout used for new accounts.",
+    iconClass: "icon-category-customization",
+  },
+  {
     key: SECTION_KEYS.APP_ORDER,
     label: "nextcloud app order",
     description: "Edit and validate the global default app-order JSON before saving it.",
@@ -79,6 +87,7 @@ const SECTION_GROUPS = [
       SECTION_KEYS.ACCOUNT_OVERVIEW,
       SECTION_KEYS.ADD_ACCOUNT,
       SECTION_KEYS.APP_ORDER,
+      SECTION_KEYS.DASHBOARD_WIDGETS,
     ],
     requiresAdmin: true,
   },

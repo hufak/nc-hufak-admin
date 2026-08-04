@@ -23,6 +23,7 @@ class ApiController extends Controller {
 	private const CONFIG_EMAIL_DOMAIN = 'email_domain';
 	private const CONFIG_APPORDER = 'apporder';
 	private const CONFIG_SHARED_MAILBOXES = 'shared_mailboxes';
+	private const CONFIG_DASHBOARD_LAYOUT = 'dashboard_layout';
 	private const CONFIG_FREESCOUT_PATH = 'freescout_path';
 	private const DEFAULT_FREESCOUT_PATH = '../ticket.hufak.net/freescout-dist';
 	private const DEFAULT_EMAIL_DOMAIN = 'hufak.net';
@@ -235,6 +236,125 @@ class ApiController extends Controller {
 		return new DataResponse([
 			'message' => 'Apporder saved',
 			'apporder' => $apporder,
+		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function getDashboardLayout(): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse([
+				'message' => 'Admin permissions required',
+			], Http::STATUS_FORBIDDEN);
+		}
+
+		return new DataResponse([
+			'dashboardLayout' => $this->getConfiguredDashboardLayout(),
+		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function setDashboardLayout(): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse([
+				'message' => 'Admin permissions required',
+			], Http::STATUS_FORBIDDEN);
+		}
+
+		$layout = $this->normalizeDashboardLayout(
+			(string)$this->request->getParam('dashboardLayout', ''),
+		);
+		if ($layout === '') {
+			return new DataResponse([
+				'message' => 'Missing dashboard widget layout payload',
+			], Http::STATUS_BAD_REQUEST);
+		}
+
+		foreach (explode(',', $layout) as $widgetId) {
+			if (!preg_match('/^[A-Za-z0-9_.\\-]+$/', $widgetId)) {
+				return new DataResponse([
+					'message' => sprintf('Invalid widget id "%s"', $widgetId),
+				], Http::STATUS_BAD_REQUEST);
+			}
+		}
+
+		$this->config->setAppValue($this->appName, self::CONFIG_DASHBOARD_LAYOUT, $layout);
+
+		return new DataResponse([
+			'message' => 'Dashboard widgets saved',
+			'dashboardLayout' => $layout,
+		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function resetUserDashboardLayout(string $uid): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse([
+				'message' => 'Admin permissions required',
+			], Http::STATUS_FORBIDDEN);
+		}
+
+		$uid = trim($uid);
+		if ($uid === '' || !$this->userManager->userExists($uid)) {
+			return new DataResponse([
+				'message' => 'Unknown user',
+			], Http::STATUS_BAD_REQUEST);
+		}
+
+		$layout = $this->getConfiguredDashboardLayout();
+		if ($layout === '') {
+			// nothing configured yet, so there is no drift to correct either
+			return new DataResponse([
+				'message' => 'No default dashboard widgets configured, nothing to apply',
+				'uid' => $uid,
+			]);
+		}
+
+		$this->config->setUserValue($uid, 'dashboard', 'layout', $layout);
+
+		return new DataResponse([
+			'message' => 'User dashboard widgets reset to defaults',
+			'uid' => $uid,
+		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function promoteUserDashboardLayout(string $uid): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse([
+				'message' => 'Admin permissions required',
+			], Http::STATUS_FORBIDDEN);
+		}
+
+		$uid = trim($uid);
+		if ($uid === '' || !$this->userManager->userExists($uid)) {
+			return new DataResponse([
+				'message' => 'Unknown user',
+			], Http::STATUS_BAD_REQUEST);
+		}
+
+		$userLayout = $this->normalizeDashboardLayout(
+			$this->config->getUserValue($uid, 'dashboard', 'layout', ''),
+		);
+		if ($userLayout === '') {
+			return new DataResponse([
+				'message' => 'User dashboard widget layout is empty',
+			], Http::STATUS_BAD_REQUEST);
+		}
+
+		$this->config->setAppValue($this->appName, self::CONFIG_DASHBOARD_LAYOUT, $userLayout);
+
+		return new DataResponse([
+			'message' => 'Default dashboard widgets updated from user layout',
+			'uid' => $uid,
+			'dashboardLayout' => $userLayout,
 		]);
 	}
 
@@ -1174,11 +1294,12 @@ class ApiController extends Controller {
 		}
 
 		$configuredApporder = $this->getConfiguredApporder();
+		$configuredDashboardLayout = $this->getConfiguredDashboardLayout();
 		$selectedUid = trim((string)$this->request->getParam('uid', ''));
 		$includePronoun = trim((string)$this->request->getParam('includePronoun', '')) === '1';
 		$users = [];
 		$disabledUsers = [];
-		$this->userManager->callForAllUsers(function ($user) use (&$users, &$disabledUsers, $configuredApporder, $selectedUid, $includePronoun): void {
+		$this->userManager->callForAllUsers(function ($user) use (&$users, &$disabledUsers, $configuredApporder, $configuredDashboardLayout, $selectedUid, $includePronoun): void {
 			$uid = $user->getUID();
 			if ($selectedUid !== '' && $uid !== $selectedUid) {
 				return;
@@ -1222,6 +1343,9 @@ class ApiController extends Controller {
 				'apporder',
 				'',
 			);
+			$userDashboardLayout = $this->normalizeDashboardLayout(
+				$this->config->getUserValue($uid, 'dashboard', 'layout', ''),
+			);
 
 			$users[] = [
 				'uid' => $uid,
@@ -1239,6 +1363,11 @@ class ApiController extends Controller {
 				'apporderMatches' => $this->apporderMatchesConfigured($userApporder, $configuredApporder),
 				'apporderDiff' => $this->buildJsondiffpatchLikeApporderDiff($userApporder, $configuredApporder),
 				'apporder' => $userApporder,
+				'dashboardLayout' => $userDashboardLayout,
+				// without a configured default there is no drift to report
+				'dashboardLayoutMatches' => $configuredDashboardLayout === ''
+					|| ($userDashboardLayout !== ''
+						&& $userDashboardLayout === $configuredDashboardLayout),
 			];
 		});
 
@@ -1253,6 +1382,7 @@ class ApiController extends Controller {
 			'users' => $users,
 			'disabledUsers' => $disabledUsers,
 			'defaultApporder' => $configuredApporder,
+			'defaultDashboardLayout' => $configuredDashboardLayout,
 		]);
 	}
 
@@ -1287,6 +1417,28 @@ class ApiController extends Controller {
 
 	private function getStoredEmailDomain(): string {
 		return $this->config->getAppValue($this->appName, self::CONFIG_EMAIL_DOMAIN, self::DEFAULT_EMAIL_DOMAIN);
+	}
+
+	private function normalizeDashboardLayout(string $layout): string {
+		$widgetIds = array_filter(
+			array_map('trim', explode(',', $layout)),
+			static fn (string $widgetId): bool => $widgetId !== '',
+		);
+		return implode(',', $widgetIds);
+	}
+
+	private function getConfiguredDashboardLayout(): string {
+		$current = $this->normalizeDashboardLayout(
+			$this->config->getAppValue($this->appName, self::CONFIG_DASHBOARD_LAYOUT, ''),
+		);
+		if ($current !== '') {
+			return $current;
+		}
+
+		// fall back to whatever the dashboard app itself hands new accounts
+		return $this->normalizeDashboardLayout(
+			$this->config->getAppValue('dashboard', 'layout', ''),
+		);
 	}
 
 	private function getConfiguredFreescoutPath(): string {

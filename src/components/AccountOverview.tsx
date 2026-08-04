@@ -2,88 +2,81 @@ import { useCallback, useEffect, useState } from "react";
 import type { ReactElement } from "react";
 import { apiRequest } from "../api";
 import { formatTimeSince, isInactiveOverMonth } from "../utils/timeUtils";
+import {
+  buildSettingDiffRows,
+  parseJsonObjectSetting,
+  parseListSetting,
+} from "../utils/settingDiff";
 import { styles } from "../styles";
 import { AccountEmailAccountsOverview } from "./AccountEmailAccountsOverview";
+import { SettingDiffCell } from "./SettingDiffCell";
+import { SettingDiffPopover } from "./SettingDiffPopover";
 import type { DisabledUser, MailboxUser, UserStatusResponse } from "../types";
 
 interface AccountOverviewProps {
   onEditMailbox?: (uid: string) => void;
 }
 
+type SettingKey = "apporder" | "dashboard";
+
+interface SettingDefinition {
+  key: SettingKey;
+  /** used in button labels and messages */
+  name: string;
+  columnHeader: string;
+  entryHeader: string;
+  /** path segment of the per-account endpoints */
+  endpoint: string;
+  matches: (user: MailboxUser) => boolean;
+  userValue: (user: MailboxUser) => string;
+  parse: (raw: string | undefined) => Record<string, unknown> | null;
+}
+
+const SETTINGS: SettingDefinition[] = [
+  {
+    key: "apporder",
+    name: "app order",
+    columnHeader: "NC app order",
+    entryHeader: "App",
+    endpoint: "apporder",
+    matches: (user) => Boolean(user.apporderMatches),
+    userValue: (user) => user.apporder || "",
+    parse: parseJsonObjectSetting,
+  },
+  {
+    key: "dashboard",
+    name: "dashboard widgets",
+    columnHeader: "NC dashboard widgets",
+    entryHeader: "Widget",
+    endpoint: "dashboard-layout",
+    matches: (user) => Boolean(user.dashboardLayoutMatches),
+    userValue: (user) => user.dashboardLayout || "",
+    parse: parseListSetting,
+  },
+];
+
 interface DiffPopoverState {
   uid: string;
+  settingKey: SettingKey;
   top: number;
   left: number;
   width: number;
 }
 
-interface ApporderRow {
-  key: string;
-  userValue?: string;
-  defaultValue?: string;
-  differs: boolean;
+interface PendingAction {
+  uid: string;
+  settingKey: SettingKey;
 }
 
 const POPOVER_MAX_WIDTH = 920;
 const POPOVER_MARGIN = 8;
 
-function parseApporder(raw: string | undefined): Record<string, unknown> | null {
-  if (typeof raw !== "string" || raw.trim() === "") {
-    return null;
-  }
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed)
-      ? (parsed as Record<string, unknown>)
-      : null;
-  } catch {
-    return null;
-  }
-}
-
-function apporderEntryOrder(value: unknown): number {
-  if (value !== null && typeof value === "object" && !Array.isArray(value)) {
-    const order = (value as Record<string, unknown>).order;
-    if (typeof order === "number" && Number.isFinite(order)) {
-      return order;
-    }
-  }
-  return Number.MAX_SAFE_INTEGER;
-}
-
-function buildApporderRows(
-  userApporder: Record<string, unknown>,
-  defaultApporder: Record<string, unknown>,
-): ApporderRow[] {
-  const keys = Array.from(
-    new Set([...Object.keys(userApporder), ...Object.keys(defaultApporder)]),
-  );
-  const rows = keys.map((key) => {
-    const inUser = Object.prototype.hasOwnProperty.call(userApporder, key);
-    const inDefault = Object.prototype.hasOwnProperty.call(defaultApporder, key);
-    const userValue = inUser ? JSON.stringify(userApporder[key]) : undefined;
-    const defaultValue = inDefault
-      ? JSON.stringify(defaultApporder[key])
-      : undefined;
-    return {
-      key,
-      userValue,
-      defaultValue,
-      differs: userValue !== defaultValue,
-    };
-  });
-
-  return rows.sort((a, b) => {
-    const orderA = Math.min(
-      apporderEntryOrder(defaultApporder[a.key]),
-      apporderEntryOrder(userApporder[a.key]),
-    );
-    const orderB = Math.min(
-      apporderEntryOrder(defaultApporder[b.key]),
-      apporderEntryOrder(userApporder[b.key]),
-    );
-    return orderA !== orderB ? orderA - orderB : a.key.localeCompare(b.key);
-  });
+function isSameAction(
+  action: PendingAction | null,
+  uid: string,
+  settingKey: SettingKey,
+): boolean {
+  return action?.uid === uid && action.settingKey === settingKey;
 }
 
 function AccountOverview({
@@ -94,10 +87,16 @@ function AccountOverview({
   const [users, setUsers] = useState<MailboxUser[]>([]);
   const [disabledUsers, setDisabledUsers] = useState<DisabledUser[]>([]);
   const [defaultApporder, setDefaultApporder] = useState("");
+  const [defaultDashboardLayout, setDefaultDashboardLayout] = useState("");
   const [diffPopover, setDiffPopover] = useState<DiffPopoverState | null>(null);
-  const [resettingUid, setResettingUid] = useState("");
-  const [promotingUid, setPromotingUid] = useState("");
-  const [promoteConfirmUid, setPromoteConfirmUid] = useState("");
+  const [resetting, setResetting] = useState<PendingAction | null>(null);
+  const [promoting, setPromoting] = useState<PendingAction | null>(null);
+  const [promoteConfirm, setPromoteConfirm] = useState<PendingAction | null>(
+    null,
+  );
+
+  const defaultValueFor = (settingKey: SettingKey): string =>
+    settingKey === "apporder" ? defaultApporder : defaultDashboardLayout;
 
   const loadUserStatus = useCallback(async () => {
     try {
@@ -130,6 +129,11 @@ function AccountOverview({
       setDefaultApporder(
         typeof data.defaultApporder === "string" ? data.defaultApporder : "",
       );
+      setDefaultDashboardLayout(
+        typeof data.defaultDashboardLayout === "string"
+          ? data.defaultDashboardLayout
+          : "",
+      );
       setError("");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to load status");
@@ -157,8 +161,12 @@ function AccountOverview({
     };
   }, [diffPopover]);
 
-  const toggleDiffPopover = (uid: string, anchor: HTMLElement) => {
-    if (diffPopover?.uid === uid) {
+  const toggleDiffPopover = (
+    uid: string,
+    settingKey: SettingKey,
+    anchor: HTMLElement,
+  ) => {
+    if (diffPopover?.uid === uid && diffPopover.settingKey === settingKey) {
       setDiffPopover(null);
       return;
     }
@@ -171,16 +179,25 @@ function AccountOverview({
       POPOVER_MARGIN,
       Math.min(rect.left, window.innerWidth - width - POPOVER_MARGIN),
     );
-    setDiffPopover({ uid, top: rect.bottom + 6, left, width });
+    setDiffPopover({
+      uid,
+      settingKey,
+      top: rect.bottom + 6,
+      left,
+      width,
+    });
   };
 
-  const resetUserApporder = async (uid: string) => {
+  const applyDefaultSetting = async (
+    uid: string,
+    setting: SettingDefinition,
+  ) => {
     setDiffPopover(null);
-    setResettingUid(uid);
+    setResetting({ uid, settingKey: setting.key });
     try {
       await apiRequest(
         OC.generateUrl(
-          `/apps/hufak/api/accounts/${encodeURIComponent(uid)}/apporder/default`,
+          `/apps/hufak/api/accounts/${encodeURIComponent(uid)}/${setting.endpoint}/default`,
         ),
         {
           method: "POST",
@@ -189,21 +206,24 @@ function AccountOverview({
       await loadUserStatus();
     } catch (err) {
       setError(
-        `Failed to reset app order for ${uid}: ${err instanceof Error ? err.message : "Unknown error"}`,
+        `Failed to reset ${setting.name} for ${uid}: ${err instanceof Error ? err.message : "Unknown error"}`,
       );
     } finally {
-      setResettingUid("");
+      setResetting(null);
     }
   };
 
-  const promoteUserApporder = async (uid: string) => {
+  const promoteSettingToDefault = async (
+    uid: string,
+    setting: SettingDefinition,
+  ) => {
     setDiffPopover(null);
-    setPromoteConfirmUid("");
-    setPromotingUid(uid);
+    setPromoteConfirm(null);
+    setPromoting({ uid, settingKey: setting.key });
     try {
       await apiRequest(
         OC.generateUrl(
-          `/apps/hufak/api/accounts/${encodeURIComponent(uid)}/apporder/promote`,
+          `/apps/hufak/api/accounts/${encodeURIComponent(uid)}/${setting.endpoint}/promote`,
         ),
         {
           method: "POST",
@@ -212,10 +232,10 @@ function AccountOverview({
       await loadUserStatus();
     } catch (err) {
       setError(
-        `Failed to set default app order from ${uid}: ${err instanceof Error ? err.message : "Unknown error"}`,
+        `Failed to set default ${setting.name} from ${uid}: ${err instanceof Error ? err.message : "Unknown error"}`,
       );
     } finally {
-      setPromotingUid("");
+      setPromoting(null);
     }
   };
 
@@ -241,136 +261,77 @@ function AccountOverview({
     );
   }
 
+  const diffSetting = diffPopover
+    ? SETTINGS.find((setting) => setting.key === diffPopover.settingKey)
+    : undefined;
   const diffUser = diffPopover
     ? users.find((user) => user.uid === diffPopover.uid)
     : undefined;
-  const diffUserApporder = parseApporder(diffUser?.apporder);
-  const diffDefaultApporder = parseApporder(defaultApporder);
+  const diffUserRaw =
+    diffSetting && diffUser ? diffSetting.userValue(diffUser) : "";
+  const diffDefaultRaw = diffPopover ? defaultValueFor(diffPopover.settingKey) : "";
+  const diffUserParsed = diffSetting ? diffSetting.parse(diffUserRaw) : null;
+  const diffDefaultParsed = diffSetting ? diffSetting.parse(diffDefaultRaw) : null;
   const diffRows =
-    diffUserApporder && diffDefaultApporder
-      ? buildApporderRows(diffUserApporder, diffDefaultApporder)
+    diffUserParsed && diffDefaultParsed
+      ? buildSettingDiffRows(diffUserParsed, diffDefaultParsed)
       : null;
+  const promoteConfirmSetting = promoteConfirm
+    ? SETTINGS.find((setting) => setting.key === promoteConfirm.settingKey)
+    : undefined;
 
   return (
     <section style={styles.fullWidthSection}>
-      {diffPopover && diffUser && (
-        <>
-          <div
-            style={styles.popoverBackdrop}
-            onMouseDown={() => setDiffPopover(null)}
-            role="presentation"
-          />
-          <div
-            style={{
-              ...styles.popoverPanel,
-              top: `${diffPopover.top}px`,
-              left: `${diffPopover.left}px`,
-              width: `${diffPopover.width}px`,
-              maxHeight: `calc(100vh - ${diffPopover.top + POPOVER_MARGIN}px)`,
-            }}
-          >
-            <div style={styles.tooltipHeader}>
-              <strong>App order of {diffUser.uid} vs. default app order</strong>
-              <button
-                type="button"
-                onClick={() => setDiffPopover(null)}
-                style={styles.inlineActionButton}
-                aria-label="close diff"
-                title="close diff"
-              >
-                <span
-                  className="icon icon-close"
-                  aria-hidden="true"
-                  style={styles.squareIcon}
-                />
-              </button>
-            </div>
-            {diffRows ? (
-              <>
-                <p style={{ ...styles.hintText, marginBottom: "6px" }}>
-                  Highlighted rows differ. Entries are sorted by app order
-                  position.
-                </p>
-                <div style={styles.diffScroller}>
-                  <table style={styles.diffTable}>
-                    <thead>
-                      <tr>
-                        <th style={styles.diffTableHeader}>App</th>
-                        <th style={styles.diffTableHeader}>
-                          {diffUser.uid} (user)
-                        </th>
-                        <th style={styles.diffTableHeader}>default</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {diffRows.map((row) => (
-                        <tr
-                          key={row.key}
-                          style={row.differs ? styles.diffRowChanged : undefined}
-                        >
-                          <td style={styles.diffTableCell}>{row.key}</td>
-                          <td style={styles.diffTableCell}>
-                            {row.userValue ?? "—"}
-                          </td>
-                          <td style={styles.diffTableCell}>
-                            {row.defaultValue ?? "—"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </>
-            ) : (
-              <div style={styles.diffColumns}>
-                <div>
-                  <p style={{ ...styles.hintText, marginBottom: "4px" }}>
-                    {diffUser.uid} (user)
-                  </p>
-                  <pre style={styles.tooltipPre}>
-                    {diffUser.apporder || "(empty)"}
-                  </pre>
-                </div>
-                <div>
-                  <p style={{ ...styles.hintText, marginBottom: "4px" }}>
-                    default
-                  </p>
-                  <pre style={styles.tooltipPre}>
-                    {defaultApporder || "(empty)"}
-                  </pre>
-                </div>
-              </div>
-            )}
-          </div>
-        </>
+      {diffPopover && diffSetting && diffUser && (
+        <SettingDiffPopover
+          title={`${diffSetting.name} of ${diffUser.uid} vs. default ${diffSetting.name}`}
+          entryHeader={diffSetting.entryHeader}
+          userLabel={`${diffUser.uid} (user)`}
+          rows={diffRows}
+          userRaw={diffUserRaw}
+          defaultRaw={diffDefaultRaw}
+          top={diffPopover.top}
+          left={diffPopover.left}
+          width={diffPopover.width}
+          margin={POPOVER_MARGIN}
+          onClose={() => setDiffPopover(null)}
+        />
       )}
-      {promoteConfirmUid && (
+      {promoteConfirm && promoteConfirmSetting && (
         <div
           style={styles.modalBackdrop}
-          onMouseDown={() => setPromoteConfirmUid("")}
+          onMouseDown={() => setPromoteConfirm(null)}
           role="presentation"
         >
           <div
             style={styles.modalCard}
             onMouseDown={(event) => event.stopPropagation()}
           >
-            <h4 style={styles.modalTitle}>Set new default app order</h4>
+            <h4 style={styles.modalTitle}>
+              Set new default {promoteConfirmSetting.name}
+            </h4>
             <p style={styles.modalText}>
-              Store the app order of <strong>{promoteConfirmUid}</strong> as the
-              new global default app order? It will be used for newly created
-              accounts and when resetting other accounts' app order.
+              Store the {promoteConfirmSetting.name} of{" "}
+              <strong>{promoteConfirm.uid}</strong> as the new global default{" "}
+              {promoteConfirmSetting.name}? It will be used for newly created
+              accounts and when resetting other accounts.
             </p>
             <div style={styles.modalButtonRow}>
               <button
                 type="button"
-                onClick={() => promoteUserApporder(promoteConfirmUid)}
+                onClick={() =>
+                  promoteSettingToDefault(
+                    promoteConfirm.uid,
+                    promoteConfirmSetting,
+                  )
+                }
                 style={styles.submitButton}
               >
                 Set as default
               </button>
               <button
                 type="button"
-                onClick={() => setPromoteConfirmUid("")}
+                onClick={() => setPromoteConfirm(null)}
                 style={styles.clearButton}
               >
                 Cancel
@@ -396,130 +357,107 @@ function AccountOverview({
             <tr>
               <th style={styles.tableHeader}>UID</th>
               <th style={styles.tableHeader}>Snappymail email accounts</th>
-              <th style={styles.tableHeader}>NC app order</th>
+              {SETTINGS.map((setting) => (
+                <th key={setting.key} style={styles.tableHeader}>
+                  {setting.columnHeader}
+                </th>
+              ))}
               <th style={styles.tableHeader}>Last activity</th>
               <th style={styles.tableHeader}>Failed login attempts</th>
             </tr>
           </thead>
           <tbody>
-            {users.map((user) => {
-              return (
-                <tr key={user.uid}>
-                  <td style={styles.tableCell}>{user.uid}</td>
-                  <td style={{ ...styles.tableCell, ...styles.emailCell }}>
-                    <div style={styles.emailCellLayout}>
-                      <div style={styles.emailCellContent}>
-                        <AccountEmailAccountsOverview user={user} />
+            {users.map((user) => (
+              <tr key={user.uid}>
+                <td style={styles.tableCell}>{user.uid}</td>
+                <td style={{ ...styles.tableCell, ...styles.emailCell }}>
+                  <div style={styles.emailCellLayout}>
+                    <div style={styles.emailCellContent}>
+                      <AccountEmailAccountsOverview user={user} />
+                    </div>
+                    {onEditMailbox ? (
+                      <button
+                        type="button"
+                        onClick={() => onEditMailbox(user.uid)}
+                        style={styles.emailCellEditButton}
+                        title={`edit Snappymail accounts for user ${user.uid}`}
+                        aria-label={`edit Snappymail accounts for user ${user.uid}`}
+                      >
+                        <span
+                          className="icon icon-rename"
+                          aria-hidden="true"
+                          style={styles.squareIcon}
+                        />
+                      </button>
+                    ) : null}
+                  </div>
+                </td>
+                {SETTINGS.map((setting) => {
+                  const isResetting = isSameAction(
+                    resetting,
+                    user.uid,
+                    setting.key,
+                  );
+                  const isPromoting = isSameAction(
+                    promoting,
+                    user.uid,
+                    setting.key,
+                  );
+                  return (
+                    <td key={setting.key} style={styles.tableCell}>
+                      <div style={styles.statusWithTooltip}>
+                        <SettingDiffCell
+                          settingName={setting.name}
+                          uid={user.uid}
+                          matches={setting.matches(user)}
+                          busy={isResetting || isPromoting}
+                          applying={isResetting}
+                          promoting={isPromoting}
+                          inspectExpanded={
+                            diffPopover?.uid === user.uid &&
+                            diffPopover.settingKey === setting.key
+                          }
+                          onInspect={(anchor) =>
+                            toggleDiffPopover(user.uid, setting.key, anchor)
+                          }
+                          onApplyDefault={() =>
+                            applyDefaultSetting(user.uid, setting)
+                          }
+                          onPromoteToDefault={() =>
+                            setPromoteConfirm({
+                              uid: user.uid,
+                              settingKey: setting.key,
+                            })
+                          }
+                        />
                       </div>
-                      {onEditMailbox ? (
-                        <button
-                          type="button"
-                          onClick={() => onEditMailbox(user.uid)}
-                          style={styles.emailCellEditButton}
-                          title={`edit Snappymail accounts for user ${user.uid}`}
-                          aria-label={`edit Snappymail accounts for user ${user.uid}`}
-                        >
-                          <span
-                            className="icon icon-rename"
-                            aria-hidden="true"
-                            style={styles.squareIcon}
-                          />
-                        </button>
-                      ) : null}
-                    </div>
-                  </td>
-                  <td style={styles.tableCell}>
-                    <div style={styles.statusWithTooltip}>
-                      {user.apporderMatches ? (
-                        <span
-                          className="icon icon-checkmark"
-                          aria-label="app order matches default"
-                        ></span>
-                      ) : (
-                        <>
-                          <span
-                            className="icon icon-error"
-                            aria-label="app order differs from default"
-                          ></span>
-                          <button
-                            type="button"
-                            onClick={(event) =>
-                              toggleDiffPopover(user.uid, event.currentTarget)
-                            }
-                            style={styles.inlineActionButton}
-                            aria-expanded={diffPopover?.uid === user.uid}
-                            aria-label="inspect difference to default app order"
-                            title="inspect difference to default app order"
-                          >
-                            <span
-                              className="icon icon-toggle"
-                              aria-hidden="true"
-                              style={styles.squareIcon}
-                            />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => resetUserApporder(user.uid)}
-                            disabled={
-                              resettingUid === user.uid ||
-                              promotingUid === user.uid
-                            }
-                            style={styles.inlineActionButton}
-                            aria-label="apply default app order"
-                            title="apply default app order"
-                          >
-                            <span
-                              className={`icon ${resettingUid === user.uid ? "icon-loading-small" : "icon-history"}`}
-                              aria-hidden="true"
-                              style={styles.squareIcon}
-                            />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setPromoteConfirmUid(user.uid)}
-                            disabled={
-                              resettingUid === user.uid ||
-                              promotingUid === user.uid
-                            }
-                            style={styles.inlineActionButton}
-                            aria-label="set this user's app order as the new global default app order"
-                            title="set this user's app order as the new global default app order"
-                          >
-                            <span
-                              className={`icon ${promotingUid === user.uid ? "icon-loading-small" : "icon-upload"}`}
-                              aria-hidden="true"
-                              style={styles.squareIcon}
-                            />
-                          </button>
-                        </>
-                      )}
-                    </div>
-                  </td>
-                  <td style={styles.tableCell}>
-                    <span>{formatTimeSince(user.lastActivityTs)}</span>
-                    {user.lastActivityTs !== null &&
-                      user.lastActivityTs !== undefined &&
-                      Number(user.lastActivityTs) > 0 &&
-                      isInactiveOverMonth(user.lastActivityTs) && (
-                        <span
-                          style={styles.inactiveWarning}
-                          title="No activity for more than one month"
-                        >
-                          !
-                        </span>
-                      )}
-                  </td>
-                  <td style={styles.tableCell}>
-                    {Number.isInteger(user.failedLoginAttempts)
-                      ? user.failedLoginAttempts
-                      : "-"}
-                  </td>
-                </tr>
-              );
-            })}
+                    </td>
+                  );
+                })}
+                <td style={styles.tableCell}>
+                  <span>{formatTimeSince(user.lastActivityTs)}</span>
+                  {user.lastActivityTs !== null &&
+                    user.lastActivityTs !== undefined &&
+                    Number(user.lastActivityTs) > 0 &&
+                    isInactiveOverMonth(user.lastActivityTs) && (
+                      <span
+                        style={styles.inactiveWarning}
+                        title="No activity for more than one month"
+                      >
+                        !
+                      </span>
+                    )}
+                </td>
+                <td style={styles.tableCell}>
+                  {Number.isInteger(user.failedLoginAttempts)
+                    ? user.failedLoginAttempts
+                    : "-"}
+                </td>
+              </tr>
+            ))}
             {users.length === 0 && (
               <tr>
-                <td style={styles.tableCell} colSpan={5}>
+                <td style={styles.tableCell} colSpan={4 + SETTINGS.length}>
                   No active accounts found.
                 </td>
               </tr>

@@ -87,9 +87,10 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 
 		const shouldConfigureDefaultMailbox =
 			defaultEmailAccount.trim() !== '' && defaultEmailAccountPassword !== '';
-		const totalSteps = 2 + (shouldConfigureDefaultMailbox ? 1 : 0) + (createFreescoutUser ? 1 : 0);
-		const mailboxStep = 3;
-		const freescoutStep = shouldConfigureDefaultMailbox ? 4 : 3;
+		const totalSteps = 3 + (shouldConfigureDefaultMailbox ? 1 : 0) + (createFreescoutUser ? 1 : 0);
+		const dashboardStep = 3;
+		const mailboxStep = 4;
+		const freescoutStep = shouldConfigureDefaultMailbox ? 5 : 4;
 		const createdUid = String(username || '').trim();
 		let allStepsSucceeded = true;
 
@@ -141,6 +142,28 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 				lines.push(
 					`❌ Step 2/${totalSteps}: Failed to set app order defaults: ${
 						step2Err instanceof Error ? step2Err.message : 'Unknown error'
+					}`,
+				);
+			}
+
+			lines.push(`⏳ Step ${dashboardStep}/${totalSteps}: Setting dashboard widget defaults...`);
+			try {
+				const dashboardData = await apiRequest<ApporderResetResponse>(
+					OC.generateUrl(
+						`/apps/hufak/api/accounts/${encodeURIComponent(actualCreatedUid)}/dashboard-layout/default`,
+					),
+					{
+						method: 'POST',
+					},
+				);
+				lines.push(
+					`✅ Step ${dashboardStep}/${totalSteps}: ${dashboardData.message || 'Dashboard widget defaults set'}`,
+				);
+			} catch (dashboardErr) {
+				allStepsSucceeded = false;
+				lines.push(
+					`❌ Step ${dashboardStep}/${totalSteps}: Failed to set dashboard widget defaults: ${
+						dashboardErr instanceof Error ? dashboardErr.message : 'Unknown error'
 					}`,
 				);
 			}

@@ -100,6 +100,26 @@ return [
 			'verb' => 'POST',
 		],
 		[
+			'name' => 'api#getDashboardLayout',
+			'url' => '/api/settings/dashboard-layout',
+			'verb' => 'GET',
+		],
+		[
+			'name' => 'api#setDashboardLayout',
+			'url' => '/api/settings/dashboard-layout',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'api#resetUserDashboardLayout',
+			'url' => '/api/accounts/{uid}/dashboard-layout/default',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'api#promoteUserDashboardLayout',
+			'url' => '/api/accounts/{uid}/dashboard-layout/promote',
+			'verb' => 'POST',
+		],
+		[
 			'name' => 'api#createFreescoutUser',
 			'url' => '/api/freescout/user',
 			'verb' => 'POST',

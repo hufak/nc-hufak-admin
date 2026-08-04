@@ -7,6 +7,7 @@ import { AccountOverview } from './AccountOverview';
 import { MailboxConfig } from './MailboxConfig';
 import { SignatureTemplateDefaults } from './SignatureTemplateDefaults';
 import { AppOrderDefaults } from './AppOrderDefaults';
+import { DashboardWidgetDefaults } from './DashboardWidgetDefaults';
 import { StudentStats } from './StudentStats';
 import {
 	buildSectionUrl,
@@ -123,6 +124,8 @@ function AdminPanel({ adminStatus, adminStatusError, emailDomain, setEmailDomain
 		content = <SignatureTemplateDefaults />;
 	} else if (currentSection === SECTION_KEYS.APP_ORDER) {
 		content = <AppOrderDefaults />;
+	} else if (currentSection === SECTION_KEYS.DASHBOARD_WIDGETS) {
+		content = <DashboardWidgetDefaults />;
 	}
 
 	return (

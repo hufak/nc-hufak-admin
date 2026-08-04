@@ -1101,6 +1101,7 @@ class ApiController extends Controller {
 				'additionalAccountIdentitiesLookupErrors' => $additionalAccountIdentitiesLookupErrors,
 				'apporderMatches' => $this->apporderMatchesConfigured($userApporder, $configuredApporder),
 				'apporderDiff' => $this->buildJsondiffpatchLikeApporderDiff($userApporder, $configuredApporder),
+				'apporder' => $userApporder,
 			];
 		});
 
@@ -1114,6 +1115,7 @@ class ApiController extends Controller {
 		return new DataResponse([
 			'users' => $users,
 			'disabledUsers' => $disabledUsers,
+			'defaultApporder' => $configuredApporder,
 		]);
 	}
 

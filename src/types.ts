@@ -30,6 +30,7 @@ export interface MailboxUser {
 	primaryEmail?: string
 	apporderMatches?: boolean
 	apporderDiff?: JsonObject | JsonValue[] | null
+	apporder?: string
 	lastActivityTs?: number | string | null
 	failedLoginAttempts?: number | null
 	additionalAccounts?: Record<string, AdditionalAccountEntry> | null
@@ -55,6 +56,7 @@ export interface EmailDomainResponse {
 export interface UserStatusResponse {
 	users?: MailboxUser[]
 	disabledUsers?: DisabledUser[]
+	defaultApporder?: string
 }
 
 export interface UserCreateResponse {

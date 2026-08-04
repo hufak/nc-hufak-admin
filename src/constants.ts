@@ -75,12 +75,16 @@ const SECTION_GROUPS = [
   },
   {
     label: "Nextcloud accounts",
-    items: [SECTION_KEYS.ACCOUNT_OVERVIEW, SECTION_KEYS.ADD_ACCOUNT],
+    items: [
+      SECTION_KEYS.ACCOUNT_OVERVIEW,
+      SECTION_KEYS.ADD_ACCOUNT,
+      SECTION_KEYS.APP_ORDER,
+    ],
     requiresAdmin: true,
   },
   {
-    label: "Shared configuration",
-    items: [SECTION_KEYS.MAILBOX_NAMES, SECTION_KEYS.SIGNATURE_TEMPLATE, SECTION_KEYS.APP_ORDER],
+    label: "Snappymail settings",
+    items: [SECTION_KEYS.MAILBOX_NAMES, SECTION_KEYS.SIGNATURE_TEMPLATE],
     requiresAdmin: true,
   },
 ] as const satisfies readonly {

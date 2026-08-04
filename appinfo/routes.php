@@ -100,6 +100,11 @@ return [
 			'verb' => 'POST',
 		],
 		[
+			'name' => 'api#promoteUserApporder',
+			'url' => '/api/accounts/{uid}/apporder/promote',
+			'verb' => 'POST',
+		],
+		[
 			'name' => 'api#getStudentStatsAsset',
 			'url' => '/api/student-stats/{fileName}',
 			'verb' => 'GET',

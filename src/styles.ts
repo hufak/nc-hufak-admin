@@ -101,6 +101,28 @@ const styles: Record<string, CSSProperties> = {
 		width: 'fit-content',
 		maxWidth: '100%',
 	},
+	fieldWithNoteRow: {
+		display: 'flex',
+		flexWrap: 'wrap',
+		alignItems: 'center',
+		gap: '10px',
+	},
+	collapsibleSection: {
+		border: '1px solid var(--color-border)',
+		borderRadius: '8px',
+		padding: '8px 12px',
+	},
+	collapsibleSummary: {
+		fontWeight: 600,
+		fontSize: '14px',
+		color: 'var(--color-main-text)',
+		cursor: 'pointer',
+	},
+	collapsibleContent: {
+		display: 'grid',
+		gap: '10px',
+		marginTop: '10px',
+	},
 	clearButton: {
 		marginTop: '6px',
 		padding: '10px 12px',
@@ -742,6 +764,15 @@ const styles: Record<string, CSSProperties> = {
 		borderRadius: '8px',
 		boxShadow: '0 4px 16px rgba(0, 0, 0, 0.2)',
 		padding: '10px',
+	},
+	tooltipHeader: {
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'space-between',
+		gap: '8px',
+		marginBottom: '6px',
+		fontSize: '13px',
+		color: 'var(--color-main-text)',
 	},
 	tooltipPre: {
 		margin: 0,

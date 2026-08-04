@@ -271,6 +271,46 @@ class ApiController extends Controller {
 	/**
 	 * @NoAdminRequired
 	 */
+	public function promoteUserApporder(string $uid): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse([
+				'message' => 'Admin permissions required',
+			], Http::STATUS_FORBIDDEN);
+		}
+
+		$uid = trim($uid);
+		if ($uid === '' || !$this->userManager->userExists($uid)) {
+			return new DataResponse([
+				'message' => 'Unknown user',
+			], Http::STATUS_BAD_REQUEST);
+		}
+
+		$userApporder = trim($this->config->getUserValue($uid, 'core', 'apporder', ''));
+		if ($userApporder === '') {
+			return new DataResponse([
+				'message' => 'User apporder is empty',
+			], Http::STATUS_BAD_REQUEST);
+		}
+
+		$decoded = json_decode($userApporder, true);
+		if (!is_array($decoded)) {
+			return new DataResponse([
+				'message' => 'User apporder is not valid JSON object data',
+			], Http::STATUS_BAD_REQUEST);
+		}
+
+		$this->config->setAppValue($this->appName, self::CONFIG_APPORDER, $userApporder);
+
+		return new DataResponse([
+			'message' => 'Default apporder updated from user apporder',
+			'uid' => $uid,
+			'apporder' => $userApporder,
+		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
 	public function createUser(): DataResponse {
 		if (!$this->currentUserIsAdmin()) {
 			return new DataResponse([

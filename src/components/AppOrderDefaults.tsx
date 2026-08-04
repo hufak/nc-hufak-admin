@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import type { FormEvent, ReactElement } from 'react';
 import { apiRequest } from '../api';
 import { styles } from '../styles';
+import { SECTION_KEYS, buildSectionUrl, updateUrlSection } from '../constants';
 import type { ApporderSettingsResponse } from '../types';
 
 function getJsonValidationMessage(value: string): string {
@@ -10,12 +11,18 @@ function getJsonValidationMessage(value: string): string {
 		return 'App order JSON cannot be empty.';
 	}
 
+	let parsed: unknown;
 	try {
-		JSON.parse(trimmed);
-		return '';
+		parsed = JSON.parse(trimmed);
 	} catch (error) {
 		return error instanceof Error ? error.message : 'Invalid JSON.';
 	}
+
+	if (parsed === null || typeof parsed !== 'object') {
+		return 'App order JSON must be an object or array.';
+	}
+
+	return '';
 }
 
 function AppOrderDefaults(): ReactElement {
@@ -46,8 +53,9 @@ function AppOrderDefaults(): ReactElement {
 
 	const saveApporder = async (event: FormEvent<HTMLFormElement>) => {
 		event.preventDefault();
-		if (validationMessage !== '') {
-			setStatus(`Error: ${validationMessage}`);
+		const jsonError = getJsonValidationMessage(apporder);
+		if (jsonError !== '') {
+			setStatus(`Error: ${jsonError}`);
 			return;
 		}
 		setSaving(true);
@@ -77,12 +85,29 @@ function AppOrderDefaults(): ReactElement {
 		<section style={styles.formSection}>
 			<div style={styles.proseContent}>
 				<h2>Nextcloud app order</h2>
+				<p style={styles.introText}>
+					Changes to this setting only apply to newly created accounts. To roll them
+					out to existing accounts, apply the default app order per account in the{' '}
+					<a
+						href={buildSectionUrl(SECTION_KEYS.ACCOUNT_OVERVIEW)}
+						onClick={(event) => {
+							event.preventDefault();
+							updateUrlSection(SECTION_KEYS.ACCOUNT_OVERVIEW);
+							window.dispatchEvent(new PopStateEvent('popstate'));
+						}}
+						style={styles.inlineLink}
+					>
+						account overview
+					</a>
+					. Note that this overrides any app order changes those users may have made
+					themselves.
+				</p>
 			</div>
 			<form onSubmit={saveApporder} style={styles.form}>
 				<textarea
 					value={apporder}
 					onChange={(event) => setApporder(event.target.value)}
-					style={styles.templateBox}
+					style={{ ...styles.templateBox, fontFamily: 'monospace' }}
 					placeholder="Enter apporder JSON..."
 					disabled={loading}
 					rows={20}

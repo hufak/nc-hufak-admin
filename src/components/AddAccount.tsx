@@ -274,40 +274,59 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 				<label style={styles.fieldLabel} htmlFor="hufak-email">
 					Account email
 				</label>
-				<input
-					id="hufak-email"
-					type="email"
-					value={email}
-					onChange={onEmailChange}
-					autoComplete="off"
-					name="hufak-create-email"
-					disabled={isCreating}
-					placeholder={emailPlaceholder}
-					style={{ ...styles.input, ...styles.addUserInput }}
-				/>
+				<div style={styles.fieldWithNoteRow}>
+					<input
+						id="hufak-email"
+						type="email"
+						value={email}
+						onChange={onEmailChange}
+						autoComplete="off"
+						name="hufak-create-email"
+						disabled={isCreating}
+						placeholder={emailPlaceholder}
+						style={{ ...styles.input, ...styles.addUserInput }}
+					/>
+					<p style={styles.hintText}>
+						Note: create e-mail forward or account in{' '}
+						<a
+							href="https://kas.all-inkl.com/email/email-account/"
+							target="_blank"
+							rel="noreferrer"
+							style={styles.inlineLink}
+						>
+							KAS
+						</a>{' '}
+						first
+					</p>
+				</div>
 				<div style={styles.proseContent}>
 					<p style={styles.hintText}>Default domain from configuration: {emailDomain}</p>
 				</div>
 
-				<MailboxCredentialsFields
-					label="Primary mailbox (optional)"
-					emailId="hufak-default-email-account"
-					passwordId="hufak-default-email-account-password"
-					emailName="hufak-create-mailbox-email"
-					passwordName="hufak-create-mailbox-password"
-					email={defaultEmailAccount}
-					password={defaultEmailAccountPassword}
-					onEmailChange={(value) => {
-						setDefaultEmailAccount(value);
-						setIsCreateLocked(false);
-					}}
-					onPasswordChange={(value) => {
-						setDefaultEmailAccountPassword(value);
-						setIsCreateLocked(false);
-					}}
-					disabled={isCreating}
-					emailPlaceholder="e.g. bipol@hufak.net"
-				/>
+				<details style={styles.collapsibleSection}>
+					<summary style={styles.collapsibleSummary}>Snappymail settings</summary>
+					<div style={styles.collapsibleContent}>
+						<MailboxCredentialsFields
+							label="Primary mailbox (optional)"
+							emailId="hufak-default-email-account"
+							passwordId="hufak-default-email-account-password"
+							emailName="hufak-create-mailbox-email"
+							passwordName="hufak-create-mailbox-password"
+							email={defaultEmailAccount}
+							password={defaultEmailAccountPassword}
+							onEmailChange={(value) => {
+								setDefaultEmailAccount(value);
+								setIsCreateLocked(false);
+							}}
+							onPasswordChange={(value) => {
+								setDefaultEmailAccountPassword(value);
+								setIsCreateLocked(false);
+							}}
+							disabled={isCreating}
+							emailPlaceholder="e.g. bipol@hufak.net"
+						/>
+					</div>
+				</details>
 
 				<div style={styles.buttonRow}>
 					<button

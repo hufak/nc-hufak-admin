@@ -1,5 +1,5 @@
-import type { ReactElement } from 'react';
-import { SettingDefaultsEditor } from './SettingDefaultsEditor';
+<script setup lang="ts">
+import SettingDefaultsEditor from './SettingDefaultsEditor.vue';
 
 const WIDGET_ID_PATTERN = /^[A-Za-z0-9_.-]+$/;
 
@@ -27,21 +27,18 @@ function getWidgetLayoutValidationMessage(value: string): string {
 	return '';
 }
 
-function DashboardWidgetDefaults(): ReactElement {
-	return (
-		<SettingDefaultsEditor
-			title="Nextcloud dashboard widgets"
-			settingName="dashboard widgets"
-			url="/apps/hufak/api/settings/dashboard-layout"
-			payloadKey="dashboardLayout"
-			readValue={(data) =>
-				typeof data.dashboardLayout === 'string' ? data.dashboardLayout : ''
-			}
-			validate={getWidgetLayoutValidationMessage}
-			placeholder="Comma-separated widget ids, e.g. recommendations,calendar,mail"
-			rows={6}
-		/>
-	);
-}
+const readLayout = (data: Record<string, unknown>) =>
+	typeof data.dashboardLayout === 'string' ? data.dashboardLayout : '';
+</script>
 
-export { DashboardWidgetDefaults };
+<template>
+	<SettingDefaultsEditor
+		title="Nextcloud dashboard widgets"
+		setting-name="dashboard widgets"
+		url="/apps/hufak/api/settings/dashboard-layout"
+		payload-key="dashboardLayout"
+		:read-value="readLayout"
+		:validate="getWidgetLayoutValidationMessage"
+		placeholder="Comma-separated widget ids, e.g. recommendations,calendar,mail"
+		:rows="6" />
+</template>

@@ -1,0 +1,37 @@
+name,language,level,institute,admission,stv
+Architecture,EN,MA,Architektur,BA,arch
+Art & Science,EN,MA,IBMK,BA,artscience
+ausserodentliche Studierende,,,,,
+Bildende Kunst,ambiguous,Diplom,IBMK,,bildendekunst
+Bühnengestaltung,,Diplom,IBMK,,buehne
+CDS,EN,BA,IKG,Matura,cds
+CDS,EN,MA,IKG,BA,cds
+CHC,EN,MA,IKR,BA,konsrest
+Design: Angewandte Fotografie,ambiguous,Diplom,Design,,design
+Design: Kommunikationsdesign,DE,Diplom,Design,,design
+Design: Mode,ambiguous,Diplom,Design,,design
+Design: Narrative Medien,ambiguous,Diplom,Design,,design
+PhD (art),EN,PhD,Doktoratszentrum,MA,artisticresearch
+PhD (inter),EN,PhD,Doktoratszentrum,MA,Transformation Studies
+PhD (nat),ambiguous,PhD,Doktoratszentrum,MA,PhD
+PhD (tech),ambiguous,PhD,Doktoratszentrum,MA,PhD
+PhD (phil),ambiguous,PhD,Doktoratszentrum,MA,PhD
+Medienkunst: Digitale Kunst,ambiguous,Diplom,IBMK,,medienkunst
+Medienkunst: Transmediale,ambiguous,Diplom,IBMK,,medienkunst
+ecm,,MA,IKKK,BA,ecm
+ecm,,MA,IKKK,BA,ecm
+Expanded Museum Studies,DE/EN,MA,IKKK,BA,exmustudies
+Experimental Game Cultures,DE/EN,MA,IKG,BA,egc
+Industrial Design,ambiguous,Diplom,Design,Matura,
+Restaurierung,DE,Diplom,IKR,,konsrest
+Kunst- und Kulturwissenschaften,DE,MA,IKKK,BA,kuwi
+Lehramt,DE,BA,IKKK,Matura,lehramt
+Lehramt,DE,MA,IKKK,BA,lehramt
+Lehramt,DE,BA,IKKK,Matura,lehramt
+Lehramt,DE,MA,IKKK,BA,lehramt
+Social Design,DE/EN,MA,IKG,,
+Sprachkunst,DE,BA,Sprachkunst,,sprachkunst
+Sprachkunst,DE,MA,Sprachkunst,BA,sprachkunst
+TransArts,ambiguous,BA,IBMK,,TransArts
+TransArts,ambiguous,MA,IBMK,BA,TransArts
+Transformation Studies,EN,BA,Transformation,Matura,

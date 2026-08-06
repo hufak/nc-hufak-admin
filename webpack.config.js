@@ -11,7 +11,9 @@ module.exports = {
 		filename: '[name].js',
 		// the student stats app is React and is only pulled in on demand
 		chunkFilename: 'hufak-[name].js',
-		clean: false,
+		// stale chunks from earlier builds would otherwise pile up and get
+		// deployed alongside the current ones (js/data holds runtime assets)
+		clean: { keep: /^data\// },
 	},
 	module: {
 		rules: [
@@ -66,6 +68,11 @@ module.exports = {
 			'import.meta.env.BASE_URL': 'window.__hufakAssetBase__',
 		}),
 	],
+	optimization: {
+		// every async chunk keeps the name from its webpackChunkName comment
+		// instead of picking up a generated numeric id
+		splitChunks: false,
+	},
 	resolve: {
 		extensions: ['.ts', '.tsx', '.js', '.jsx', '.vue'],
 	},

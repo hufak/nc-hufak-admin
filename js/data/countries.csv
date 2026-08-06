@@ -1,0 +1,187 @@
+code,ename,name,region,continent,fee
+A,Austria,Österreich,DACH,Europe,exempt
+AFG,Afghanistan,Afghanistan,WORLD,Asia,refund
+AL,Albania,Albanien,WORLD,Europe,partial
+ALG,Algeria,Algerien,WORLD,Africa,partial
+AND,Andorra,Andorra,WORLD,Europe,double
+ANG,Angola,Angola,WORLD,Africa,refund
+ARM,Armenia,Armenien,WORLD,Asia,partial
+ASB,Azerbaijan,Aserbeidschan,WORLD,Asia,partial
+AUS,Australia,Australien,WORLD,Oceania,double
+B,Belgium,Belgien,EU,Europe,exempt
+BD,Bangladesh,Bangladesch,WORLD,Asia,refund
+BDS,Barbados,Barbados,WORLD,North America,double
+BG,Bulgaria,Bulgarien,EU,Europe,exempt
+BH,Bahrain,Bahrain,WORLD,Asia,double
+BHT,Bhutan,Bhutan,WORLD,Asia,refund
+BLR,Belarus,Weißrußland,WORLD,Europe,partial
+BOL,Bolivia,Bolivien,WORLD,South America,refund
+BR,Brazil,Brasilien,WORLD,South America,partial
+BRU,Brunei,Brunei,WORLD,Asia,double
+BS,Bahamas,Bahamas,WORLD,North America,double
+BSH,Bosnia and Herzegovina,Bosnien-Herzegowina,WORLD,Europe,partial
+BUR,Myanmar,Myanmar,WORLD,Asia,refund
+C,Cuba,Kuba,WORLD,North America,double
+CAM,Cameroon,Kamerun,WORLD,Africa,refund
+CDN,Canada,Kanada,WORLD,North America,double
+CH,Switzerland,Schweiz,DACH,Europe,exempt
+CHF,PR China,"China, Volksrepublik",WORLD,Asia,partial
+CI,Cote d'Ivoire,Elfenbeinküste,WORLD,Africa,refund
+CL,Sri Lanka,Sri Lanka,WORLD,Asia,refund
+CO,Colombia,Kolumbien,WORLD,South America,partial
+COM,Comoros,Komoren,WORLD,Africa,refund
+CR,Costa Rica,Costa Rica,WORLD,North America,partial
+CRO,Croatia,Kroatien,EU,Europe,exempt
+CV,Cape Verde,Kap Verde,WORLD,Africa,double
+CY,Cyprus,Zypern,EU,Europe,exempt
+D,Germany,Deutschland,DACH,Europe,exempt
+DJI,Djibouti,Dschibuti,WORLD,Africa,refund
+DK,Denmark,Dänemark,EU,Europe,exempt
+DOM,Dominican Republic,Dominikanische Republik,WORLD,North America,partial
+DY,Benin,Benin,WORLD,Africa,refund
+E,Spain,Spanien,EU,Europe,exempt
+EAK,Kenya,Kenia,WORLD,Africa,refund
+EAT,Tanzania,Tansania,WORLD,Africa,refund
+EAU,Uganda,Uganda,WORLD,Africa,refund
+EC,Ecuador,Ecuador,WORLD,South America,partial
+ELD,Estonia,Estland,EU,Europe,exempt
+ES,El Salvador,El Salvador,WORLD,North America,refund
+ET,Egypt,Ägypten,WORLD,Africa,refund
+ETH,Ethiopia,Äthiopien,WORLD,Africa,refund
+F,France,Frankreich,EU,Europe,exempt
+FJI,Fiji,Fidschi,WORLD,Oceania,partial
+FL,Liechtenstein,Liechtenstein,EU,Europe,exempt
+G,Gabon,Gabun,WORLD,Africa,partial
+GB,UK,Grossbritannien,WORLD,Europe,double
+GCA,Guatemala,Guatemala,WORLD,North America,partial
+GG,Georgia,Georgien,WORLD,Asia,partial
+GH,Ghana,Ghana,WORLD,Africa,refund
+GR,Greece,Griechenland,EU,Europe,exempt
+GUB,Guinea-Bissau,Guinea-Bissau,WORLD,Africa,refund
+GUY,Guyana,Guyana,WORLD,South America,partial
+H,Hungary,Ungarn,EU,Europe,exempt
+HN,Honduras,Honduras,WORLD,North America,refund
+I,Italy except South Tyrol,Italien ausser Südtirol,EU,Europe,exempt
+IL,Israel,Israel,WORLD,Asia,double
+IND,India,Indien,WORLD,Asia,refund
+IR,Iran,Iran,WORLD,Asia,refund
+IRL,Ireland,Irland,EU,Europe,exempt
+IRQ,Iraq,Irak,WORLD,Asia,partial
+IS,Iceland,Island,EU,Europe,exempt
+IST,South Tyrol,Südtirol,DACH,Europe,exempt
+J,Japan,Japan,WORLD,Asia,double
+JA,Jamaica,Jamaika,WORLD,North America,double
+JOR,Jordan,Jordanien,WORLD,Asia,partial
+K,Cambodia,Kambodscha,WORLD,Asia,refund
+KAS,Kazakhstan,Kasachstan,WORLD,Asia,partial
+KIR,Kiribati,Kiribati,WORLD,Oceania,refund
+KPI,North Korea,"Korea, Demokratische Volksrepublik",WORLD,Asia,double
+KS,Kyrgyzstan,Kirgisistan,WORLD,Asia,refund
+KSV,Kosovo,,WORLD,Europe,partial
+KWT,Kuwait,Kuwait,WORLD,Asia,double
+L,Luxembourgh,Luxemburg,EU,Europe,exempt
+LAO,Laos,Laos,WORLD,Asia,refund
+LAR,Libya,Libyen,WORLD,Africa,partial
+LB,Liberia,Liberia,WORLD,Africa,refund
+LIT,Lithuania,Litauen,EU,Europe,exempt
+LLD,Latvia,Lettland,EU,Europe,exempt
+LS,Lesotho,Lesotho,WORLD,Africa,refund
+M,Malta,Malta,EU,Europe,exempt
+MA,Morocco,Marokko,WORLD,Africa,refund
+MAL,Malaysia,Malaysia,WORLD,Asia,partial
+MAZ,Macedonia,Mazedonien,WORLD,Europe,partial
+MC,Monaco,Monaco,WORLD,Europe,double
+MDA,Moldova,Moldau,WORLD,Europe,partial
+MEX,Mexico,Mexiko,WORLD,North America,partial
+MGL,Mongolia,Mongolei,WORLD,Asia,refund
+MLD,Maldives,Malediven,WORLD,Asia,partial
+MO,Montenegro,,WORLD,Europe,partial
+MOC,Mozambique,Mosambik,WORLD,Africa,refund
+MS,Mauritius,Mauritius,WORLD,Africa,partial
+MW,Malawi,Malawi,WORLD,Africa,refund
+N,Norway,Norwegen,EU,Europe,exempt
+NAM,Namibia,Namibia,WORLD,Africa,refund
+NEP,Nepal,Nepal,WORLD,Asia,refund
+NIC,Nicaragua,Nicaragua,WORLD,North America,refund
+NL,Netherlands,Niederlande,EU,Europe,exempt
+NZ,New Zealand,Neuseeland,WORLD,Oceania,double
+OMA,Oman,Oman,WORLD,Asia,double
+P,Portugal,Portugal,EU,Europe,exempt
+PA,Panama,Panama,WORLD,North America,partial
+PAK,Pakistan,Pakistan,WORLD,Asia,refund
+PE,Peru,Peru,WORLD,South America,partial
+PI,Philippines,Philippinen,WORLD,Asia,refund
+PL,Poland,Polen,EU,Europe,exempt
+PNG,Papua New Guinea,Papua-Neuguinea,WORLD,Oceania,refund
+PST,Palestine,,WORLD,Asia,partial
+PY,Paraguay,Paraguay,WORLD,South America,partial
+Q,Qatar,Katar,WORLD,Asia,double
+R,Romania,Rumänien,EU,Europe,exempt
+RA,Argentina,Argentinien,WORLD,South America,partial
+RB,Botswana,Botsuana,WORLD,Africa,double
+RC,Taiwan,Taiwan,WORLD,Asia,double
+RCA,Central African Republic,Zentralafrikanische Republik,WORLD,Africa,refund
+RCB,Congo,Kongo,WORLD,Africa,partial
+RCH,Chile,Chile,WORLD,South America,double
+RG,Guinea,Guinea,WORLD,Africa,refund
+RH,Haiti,Haiti,WORLD,North America,refund
+RI,Indonesia,Indonesien,WORLD,Asia,partial
+RIM,Mauritania,Mauretanien,WORLD,Africa,refund
+RL,Lebanon,Libanon,WORLD,Asia,partial
+RM,Madagascar,Madagaskar,WORLD,Africa,refund
+RMM,Mali,Mali,WORLD,Africa,refund
+RN,Niger,Niger,WORLD,Africa,refund
+ROK,South Korea,"Korea, Republik",WORLD,Asia,double
+ROU,Uruguay,Uruguay,WORLD,South America,double
+RSF,Russia,Rußland,WORLD,Europe,double
+RSM,San Marino,San Marino,WORLD,Europe,double
+RT,Togo,Togo,WORLD,Africa,refund
+RU,Burundi,Burundi,WORLD,Africa,refund
+RWA,Rwanda,Ruanda,WORLD,Africa,refund
+S,Sweden,Schweden,EU,Europe,exempt
+SA,Saudi Arabia,Saudi-Arabien,WORLD,Asia,double
+SB,Serbia,,WORLD,Europe,partial
+SF,Finland,Finnland,EU,Europe,exempt
+SGP,Singapore,Singapur,WORLD,Asia,double
+SLO,Slovenia,Slowenien,EU,Europe,exempt
+SME,Suriname,Surinam,WORLD,South America,partial
+SN,Senegal,Senegal,WORLD,Africa,refund
+SO,Somalia,Somalia,WORLD,Africa,refund
+SOL,Solomon Islands,Salomonen,WORLD,Oceania,refund
+SQ,Slovakia,Slowakei,EU,Europe,exempt
+STP,Sao Tome and Principe,Sao Tome und Principe,WORLD,Africa,refund
+SUD,Sudan,Sudan,WORLD,Africa,refund
+SY,Seychelles,Seychellen,WORLD,Africa,partial
+SYR,Syria,Syrien,WORLD,Asia,refund
+T,Thailand,Thailand,WORLD,Asia,partial
+TCH,Czechia,Tschechische Republik,EU,Europe,exempt
+TG,Tonga,Tonga,WORLD,Oceania,double
+TJ,Tajikistan,Tadschikistan,WORLD,Asia,refund
+TM,Turkmenistan,Turkmenistan,WORLD,Asia,partial
+TN,Tunisia,Tunesien,WORLD,Africa,partial
+TR,Turkey,Türkei,WORLD,Asia,partial
+TT,Trinidad and Tobago,Trinidad und Tobago,WORLD,North America,double
+TUV,Tuvalu,Tuvalu,WORLD,Oceania,partial
+UAE,United Arab Emirates,Vereinigte Arabische Emirate,WORLD,Asia,double
+UKR,Ukraine,Ukraine,WORLD,Europe,exempt
+USA,USA,USA,WORLD,North America,double
+UV,Burkina Faso,Burkina Faso,WORLD,Africa,refund
+UZB,Uzbekistan,Usbekistan,WORLD,Asia,refund
+V,Vatican,Vatikan,WORLD,Europe,double
+VN,Vietnam,Vietnam,WORLD,Asia,refund
+WAG,Gambia,Gambia,WORLD,Africa,double
+WAL,Sierra Leone,Sierra Leone,WORLD,Africa,refund
+WAN,Nigeria,Nigeria,WORLD,Africa,refund
+WD,Dominica,Dominica,WORLD,North America,double
+WG,Grenada,Grenada,WORLD,North America,partial
+WL,St. Lucia,St. Lucia,WORLD,North America,double
+WS,Samoa,Samoa,WORLD,Oceania,refund
+WV,St. Vincent and the Grenadines,St. Vincent und die Grenadinen,WORLD,North America,double
+YD,Yemen,Jemen,WORLD,Asia,double
+YU,former Yugoslavia,ehem. Jugoslawien,WORLD,Europe,double
+YV,Venezuela,Venezuela,WORLD,South America,partial
+Z,Zambia,Sambia,WORLD,Africa,refund
+ZA,South Africa,Südafrika,WORLD,Africa,partial
+ZRE,Zaire,Zaire,WORLD,Africa,double
+ZW,Zimbabwe,Simbabwe,WORLD,Africa,refund
+ZZZ,Stateless,staatenlos,WORLD,,double

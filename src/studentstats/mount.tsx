@@ -12,8 +12,10 @@ import '../../studentstats2025/src/index.css';
 async function mountStudentStats(container: HTMLElement): Promise<() => void> {
 	window.__hufakAssetBase__ = OC.generateUrl('/apps/hufak/api/student-stats/-').slice(0, -1);
 
-	await import('../../studentstats2025/src/i18n');
-	const { default: StudentStatsApp } = await import('../../studentstats2025/src/App');
+	await import(/* webpackChunkName: "studentstats" */ '../../studentstats2025/src/i18n');
+	const { default: StudentStatsApp } = await import(
+		/* webpackChunkName: "studentstats" */ '../../studentstats2025/src/App'
+	);
 
 	const root = createRoot(container);
 	root.render(createElement(StudentStatsApp));

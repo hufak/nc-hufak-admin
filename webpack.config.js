@@ -57,7 +57,8 @@ module.exports = {
 	plugins: [
 		new VueLoaderPlugin(),
 		new webpack.DefinePlugin({
-			__VUE_OPTIONS_API__: 'false',
+			// @nextcloud/vue components are written with the options API
+			__VUE_OPTIONS_API__: 'true',
 			__VUE_PROD_DEVTOOLS__: 'false',
 			__VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false',
 		}),

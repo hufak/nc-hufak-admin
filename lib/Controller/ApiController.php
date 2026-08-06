@@ -24,6 +24,10 @@ class ApiController extends Controller {
 	private const CONFIG_APPORDER = 'apporder';
 	private const CONFIG_SHARED_MAILBOXES = 'shared_mailboxes';
 	private const CONFIG_DASHBOARD_LAYOUT = 'dashboard_layout';
+	private const SNAPPYMAIL_USER_CONFIG_APP = 'nextsnapmail';
+	private const SNAPPYMAIL_USER_CONFIG_EMAIL = 'nextsnapmail-email';
+	private const SNAPPYMAIL_OCC_COMMAND = 'nextsnapmail:settings';
+	private const SNAPPYMAIL_STORAGE_ROOT = 'appdata_nextsnapmail/_data_/_default_/storage/';
 	private const CONFIG_FREESCOUT_PATH = 'freescout_path';
 	private const DEFAULT_FREESCOUT_PATH = '../ticket.hufak.net/freescout-dist';
 	private const DEFAULT_EMAIL_DOMAIN = 'hufak.net';
@@ -691,7 +695,7 @@ class ApiController extends Controller {
 			$process = new Process([
 				$phpBinary,
 				\OC::$SERVERROOT . '/occ',
-				'snappymail:settings',
+				self::SNAPPYMAIL_OCC_COMMAND,
 				$uid,
 				$email,
 				$password,
@@ -718,7 +722,7 @@ class ApiController extends Controller {
 					'-d',
 					'opcache.enable_cli=0',
 					\OC::$SERVERROOT . '/occ',
-					'snappymail:settings',
+					self::SNAPPYMAIL_OCC_COMMAND,
 					$uid,
 					$email,
 					$password,
@@ -738,7 +742,7 @@ class ApiController extends Controller {
 		if ($process->getExitCode() !== 0 && str_contains($errorOutput, 'opcache.file_cache_only')) {
 			$hint = 'CLI PHP opcache is misconfigured (file_cache_only without file_cache). Tried a fallback with explicit opcache overrides; fix server-wide CLI PHP config if this persists.';
 		} elseif ($process->getExitCode() === 64) {
-			$hint = 'Exit code 64 indicates invalid command usage. Check snappymail:settings argument format in your installed SnappyMail version.';
+			$hint = 'Exit code 64 indicates invalid command usage. Check ' . self::SNAPPYMAIL_OCC_COMMAND . ' argument format in your installed NextSnapMail version.';
 		}
 
 		$identitiesFileMessage = '';
@@ -753,8 +757,8 @@ class ApiController extends Controller {
 		return new DataResponse([
 			'exitCode' => $process->getExitCode(),
 			'message' => $process->isSuccessful()
-				? 'snappymail:settings command finished successfully'
-				: 'snappymail:settings command failed',
+				? self::SNAPPYMAIL_OCC_COMMAND . ' command finished successfully'
+				: self::SNAPPYMAIL_OCC_COMMAND . ' command failed',
 			'output' => $process->getOutput(),
 			'errorOutput' => $errorOutput,
 			'hint' => $hint,
@@ -779,7 +783,11 @@ class ApiController extends Controller {
 			], Http::STATUS_BAD_REQUEST);
 		}
 
-		$this->config->deleteUserValue($uid, 'snappymail', 'snappymail-email');
+		$this->config->deleteUserValue(
+			$uid,
+			self::SNAPPYMAIL_USER_CONFIG_APP,
+			self::SNAPPYMAIL_USER_CONFIG_EMAIL,
+		);
 
 		return new DataResponse([
 			'message' => 'Primary e-mail account removed',
@@ -812,8 +820,8 @@ class ApiController extends Controller {
 
 		$primaryEmail = $this->config->getUserValue(
 			$uid,
-			'snappymail',
-			'snappymail-email',
+			self::SNAPPYMAIL_USER_CONFIG_APP,
+			self::SNAPPYMAIL_USER_CONFIG_EMAIL,
 			'',
 		);
 		$path = $this->resolveSnappymailStoragePath($primaryEmail, 'additionalaccounts');
@@ -918,8 +926,8 @@ class ApiController extends Controller {
 
 		$primaryEmail = $this->config->getUserValue(
 			$uid,
-			'snappymail',
-			'snappymail-email',
+			self::SNAPPYMAIL_USER_CONFIG_APP,
+			self::SNAPPYMAIL_USER_CONFIG_EMAIL,
 			'',
 		);
 		$path = $this->resolveSnappymailStoragePath($primaryEmail, 'additionalaccounts');
@@ -1124,8 +1132,8 @@ class ApiController extends Controller {
 
 		$primaryEmail = $this->config->getUserValue(
 			$uid,
-			'snappymail',
-			'snappymail-email',
+			self::SNAPPYMAIL_USER_CONFIG_APP,
+			self::SNAPPYMAIL_USER_CONFIG_EMAIL,
 			'',
 		);
 		$path = $accountType === 'primary'
@@ -1313,8 +1321,8 @@ class ApiController extends Controller {
 
 			$primaryEmail = $this->config->getUserValue(
 				$uid,
-				'snappymail',
-				'snappymail-email',
+				self::SNAPPYMAIL_USER_CONFIG_APP,
+				self::SNAPPYMAIL_USER_CONFIG_EMAIL,
 				'',
 			);
 			$additionalAccountsLookupError = null;
@@ -1727,7 +1735,7 @@ class ApiController extends Controller {
 			return null;
 		}
 
-		return 'appdata_snappymail/_data_/_default_/storage/'
+		return self::SNAPPYMAIL_STORAGE_ROOT
 			. $domain
 			. '/'
 			. $prefix
@@ -1749,7 +1757,7 @@ class ApiController extends Controller {
 			return null;
 		}
 
-		return 'appdata_snappymail/_data_/_default_/storage/'
+		return self::SNAPPYMAIL_STORAGE_ROOT
 			. $domain . '/'
 			. $prefix . '/'
 			. $additionalAccount . '/'
@@ -1881,7 +1889,7 @@ class ApiController extends Controller {
 				continue;
 			}
 
-			$path = 'appdata_snappymail/_data_/_default_/storage/'
+			$path = self::SNAPPYMAIL_STORAGE_ROOT
 				. $domain . '/'
 				. $prefix . '/'
 				. trim($additionalAccount) . '/'

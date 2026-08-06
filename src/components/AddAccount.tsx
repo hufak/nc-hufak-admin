@@ -453,7 +453,7 @@ function AddAccount({ emailDomain }: AddAccountProps): ReactElement {
 				</label>
 
 				<details style={styles.collapsibleSection}>
-					<summary style={styles.collapsibleSummary}>Snappymail settings</summary>
+					<summary style={styles.collapsibleSummary}>NextSnapMail settings</summary>
 					<div style={styles.collapsibleContent}>
 						<MailboxCredentialsFields
 							label="Primary mailbox (optional)"

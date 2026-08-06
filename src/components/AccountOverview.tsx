@@ -343,7 +343,7 @@ function AccountOverview({
       <div style={styles.proseSectionContent}>
         <h2>Account overview</h2>
         <p style={styles.introText}>
-          Hufak-specific Nextcloud account and Snappymail email settings
+          Hufak-specific Nextcloud account and NextSnapMail email settings
           overview and quick-edit. To deactive and delete old accounts, use{" "}
           <a href={OC.generateUrl("/settings/users")} style={styles.inlineLink}>
             Nextcloud account management
@@ -356,7 +356,7 @@ function AccountOverview({
           <thead>
             <tr>
               <th style={styles.tableHeader}>UID</th>
-              <th style={styles.tableHeader}>Snappymail email accounts</th>
+              <th style={styles.tableHeader}>NextSnapMail email accounts</th>
               {SETTINGS.map((setting) => (
                 <th key={setting.key} style={styles.tableHeader}>
                   {setting.columnHeader}
@@ -380,8 +380,8 @@ function AccountOverview({
                         type="button"
                         onClick={() => onEditMailbox(user.uid)}
                         style={styles.emailCellEditButton}
-                        title={`edit Snappymail accounts for user ${user.uid}`}
-                        aria-label={`edit Snappymail accounts for user ${user.uid}`}
+                        title={`edit NextSnapMail accounts for user ${user.uid}`}
+                        aria-label={`edit NextSnapMail accounts for user ${user.uid}`}
                       >
                         <span
                           className="icon icon-rename"

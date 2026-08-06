@@ -553,15 +553,15 @@ function ConfigureMail({ preselectedUid }: ConfigureMailProps): ReactElement {
 				<h2 style={{ margin: 0 }}>
 					{resolvedUid ? (
 						<>
-							Snappymail accounts for user <code style={styles.monospaceCode}>{resolvedUid}</code>
+							NextSnapMail accounts for user <code style={styles.monospaceCode}>{resolvedUid}</code>
 						</>
-					) : 'Snappymail accounts'}
+					) : 'NextSnapMail accounts'}
 				</h2>
 			</div>
 			<div style={styles.form}>
 				<div style={styles.proseContent}>
 					<p style={styles.introText}>
-						In Snappymail, every Nextcloud user has exactly one primary e-mail account
+						In NextSnapMail, every Nextcloud user has exactly one primary e-mail account
 						associated with it. Additional e-mail accounts are not tied to the
 						Nextcloud user, but to the primary e-mail account! This means that when
 						you add an additional personal e-mail account to a shared account (such
@@ -588,7 +588,7 @@ function ConfigureMail({ preselectedUid }: ConfigureMailProps): ReactElement {
 						emptyEditableState={configureMailUser ? (
 							<div style={styles.form}>
 								<p style={styles.modalText}>
-									This Nextcloud user has no primary Snappymail email account associated with it yet.
+									This Nextcloud user has no primary NextSnapMail email account associated with it yet.
 									You can set one here:
 								</p>
 								<AccountCredentialsForm

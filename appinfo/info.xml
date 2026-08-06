@@ -21,6 +21,6 @@
 	</navigations>
 	<author>K</author>
 	<dependencies>
-		<nextcloud min-version="32" max-version="32"/>
+		<nextcloud min-version="32" max-version="34"/>
 	</dependencies>
 </info>

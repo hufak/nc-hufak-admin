@@ -92,7 +92,7 @@ const SECTION_GROUPS = [
     requiresAdmin: true,
   },
   {
-    label: "Snappymail settings",
+    label: "NextSnapMail settings",
     items: [SECTION_KEYS.MAILBOX_NAMES, SECTION_KEYS.SIGNATURE_TEMPLATE],
     requiresAdmin: true,
   },

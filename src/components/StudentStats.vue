@@ -15,7 +15,7 @@ onMounted(async () => {
 			/* webpackChunkName: "studentstats" */ '../studentstats/mount'
 		);
 		if (container.value) {
-			unmountReactApp = mountStudentStats(container.value);
+			unmountReactApp = await mountStudentStats(container.value);
 		}
 	} catch (err) {
 		error.value = err instanceof Error ? err.message : 'Failed to load student stats';

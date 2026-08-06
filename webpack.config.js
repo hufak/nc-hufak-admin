@@ -61,6 +61,9 @@ module.exports = {
 			__VUE_OPTIONS_API__: 'true',
 			__VUE_PROD_DEVTOOLS__: 'false',
 			__VUE_PROD_HYDRATION_MISMATCH_DETAILS__: 'false',
+			// the embedded Vite apps read their asset base from import.meta.env,
+			// which webpack does not provide; the mount modules set the global
+			'import.meta.env.BASE_URL': 'window.__hufakAssetBase__',
 		}),
 	],
 	resolve: {

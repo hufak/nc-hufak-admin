@@ -4,6 +4,11 @@ declare const OC: {
 	filePath: (app: string, type: string, file: string) => string
 }
 
+interface Window {
+	/** base URL the embedded Vite apps resolve their static assets against */
+	__hufakAssetBase__: string
+}
+
 declare module '*.vue' {
 	import type { DefineComponent } from 'vue';
 

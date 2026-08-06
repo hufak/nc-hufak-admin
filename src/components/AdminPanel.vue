@@ -9,6 +9,7 @@ import SignatureTemplateDefaults from './SignatureTemplateDefaults.vue';
 import AppOrderDefaults from './AppOrderDefaults.vue';
 import DashboardWidgetDefaults from './DashboardWidgetDefaults.vue';
 import StudentStats from './StudentStats.vue';
+import StudentList from './StudentList.vue';
 import AppNavigation from './AppNavigation.vue';
 import type { NavigationGroup } from './navigationTypes';
 import {
@@ -132,6 +133,7 @@ const openConfigureMailForUser = (uid: string) => {
 				<Overview
 					v-if="currentSection === SECTION_KEYS.OVERVIEW"
 					:visible-section-keys="visibleSectionKeys" />
+				<StudentList v-else-if="currentSection === SECTION_KEYS.STUDENT_LIST" />
 				<StudentStats v-else-if="currentSection === SECTION_KEYS.STUDENT_STATS" />
 				<AddAccount
 					v-else-if="currentSection === SECTION_KEYS.ADD_ACCOUNT"

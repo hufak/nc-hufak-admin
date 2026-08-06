@@ -1,4 +1,5 @@
 export type SectionKey =
+  | "student-list"
   | "student-stats"
   | "overview"
   | "add-account"
@@ -10,6 +11,7 @@ export type SectionKey =
   | "dashboard-widgets";
 
 const SECTION_KEYS = {
+  STUDENT_LIST: "student-list",
   STUDENT_STATS: "student-stats",
   OVERVIEW: "overview",
   ADD_ACCOUNT: "add-account",
@@ -24,6 +26,13 @@ const SECTION_KEYS = {
 const VALID_SECTION_KEYS = Object.values(SECTION_KEYS) as SectionKey[];
 
 const SECTIONS = [
+  {
+    key: SECTION_KEYS.STUDENT_LIST,
+    label: "Student list",
+    description: "Filter and re-export the student list spreadsheet.",
+    iconClass: "icon-category-organization",
+    requiresAdmin: false,
+  },
   {
     key: SECTION_KEYS.STUDENT_STATS,
     label: "Student stats",
@@ -78,7 +87,7 @@ const SECTIONS = [
 const SECTION_GROUPS = [
   {
     label: "Hufak tools",
-    items: [SECTION_KEYS.STUDENT_STATS],
+    items: [SECTION_KEYS.STUDENT_LIST, SECTION_KEYS.STUDENT_STATS],
     requiresAdmin: false,
   },
   {

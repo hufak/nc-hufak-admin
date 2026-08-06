@@ -13,7 +13,7 @@
 			<id>hufak</id>
 			<name>Hufak</name>
 			<route>hufak.page.index</route>
-			<icon>tool.svg</icon>
+			<icon>hufak.svg</icon>
 			<order>50</order>
 			<type>link</type>
 			<role>all</role>

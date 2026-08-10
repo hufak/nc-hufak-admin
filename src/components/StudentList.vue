@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 import { styles } from '../styles';
 
 const STUDENT_LIST_ORIGIN = 'https://hufak.github.io';
@@ -25,10 +25,26 @@ const THEME_TOKENS = [
 ];
 
 const frame = ref<HTMLIFrameElement | null>(null);
-const frameHeight = ref(600);
+
+/** Height the embed reports for its own content, and the space left between the
+ * top of the frame and the bottom of the viewport. The frame takes whichever is
+ * larger, so it always reaches the bottom of the window and still grows with
+ * content taller than that. */
+const reportedHeight = ref(0);
+const availableHeight = ref(600);
+const frameHeight = computed(() => Math.max(reportedHeight.value, availableHeight.value));
+
+const measureAvailableHeight = () => {
+	const top = frame.value?.getBoundingClientRect().top ?? 0;
+	availableHeight.value = Math.max(320, Math.floor(window.innerHeight - top));
+};
 
 const readTheme = (): Record<string, string> => {
-	const computed = getComputedStyle(document.documentElement);
+	// Nextcloud scopes the theme the user actually picked to <body>, while the
+	// media-gated default sheet can leave OS-driven values at :root — so a light
+	// instance on a dark OS reads dark from <html>. Custom properties inherit,
+	// so <body> also sees whatever :root defines, with its own values winning.
+	const computed = getComputedStyle(document.body ?? document.documentElement);
 	const theme: Record<string, string> = {};
 	THEME_TOKENS.forEach((token) => {
 		const value = computed.getPropertyValue(token).trim();
@@ -60,7 +76,7 @@ const onMessage = (event: MessageEvent) => {
 		return;
 	}
 	if (data?.type === 'hufak:height' && typeof data.height === 'number' && data.height > 0) {
-		frameHeight.value = Math.ceil(data.height);
+		reportedHeight.value = Math.ceil(data.height);
 	}
 };
 
@@ -71,6 +87,8 @@ const colorSchemeQuery = window.matchMedia('(prefers-color-scheme: dark)');
 
 onMounted(() => {
 	window.addEventListener('message', onMessage);
+	measureAvailableHeight();
+	window.addEventListener('resize', measureAvailableHeight);
 	const themeAttributes = { attributes: true, attributeFilter: ['class', 'data-theme', 'data-themes', 'style'] };
 	themeObserver.observe(document.documentElement, themeAttributes);
 	themeObserver.observe(document.body, themeAttributes);
@@ -79,6 +97,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
 	window.removeEventListener('message', onMessage);
+	window.removeEventListener('resize', measureAvailableHeight);
 	themeObserver.disconnect();
 	colorSchemeQuery.removeEventListener('change', sendTheme);
 });

@@ -9,7 +9,7 @@ module.exports = {
 	output: {
 		path: path.resolve(__dirname, 'js'),
 		filename: '[name].js',
-		// the student stats app is React and is only pulled in on demand
+		// the student stats app is only pulled in on demand
 		chunkFilename: 'hufak-[name].js',
 		// stale chunks from earlier builds would otherwise pile up and get
 		// deployed alongside the current ones (js/data holds runtime assets)
@@ -23,23 +23,16 @@ module.exports = {
 			},
 			{
 				test: /\.css$/,
-				use: ['style-loader', 'css-loader', 'postcss-loader'],
+				use: ['style-loader', 'css-loader'],
 			},
 			{
-				test: /\.[jt]sx?$/,
+				test: /\.[jt]s$/,
 				exclude: /node_modules/,
 				use: {
 					loader: 'babel-loader',
 					options: {
-						presets: [
-							['@babel/preset-env', { targets: 'defaults' }],
-							['@babel/preset-react', { runtime: 'automatic' }],
-						],
+						presets: [['@babel/preset-env', { targets: 'defaults' }]],
 						overrides: [
-							{
-								test: /\.tsx$/,
-								presets: [['@babel/preset-typescript', { isTSX: true, allExtensions: true }]],
-							},
 							{
 								test: /\.ts$/,
 								presets: ['@babel/preset-typescript'],
@@ -74,6 +67,6 @@ module.exports = {
 		splitChunks: false,
 	},
 	resolve: {
-		extensions: ['.ts', '.tsx', '.js', '.jsx', '.vue'],
+		extensions: ['.ts', '.js', '.vue'],
 	},
 };

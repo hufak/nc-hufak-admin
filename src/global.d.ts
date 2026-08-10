@@ -9,6 +9,15 @@ interface Window {
 	__hufakAssetBase__: string
 }
 
+/** The submodule apps are built by Vite and read import.meta.env.BASE_URL,
+ * which webpack rewrites to window.__hufakAssetBase__ at build time. Declared
+ * here because this build has no vite/client types of its own. */
+interface ImportMeta {
+	readonly env: {
+		readonly BASE_URL: string
+	}
+}
+
 declare module '*.vue' {
 	import type { DefineComponent } from 'vue';
 

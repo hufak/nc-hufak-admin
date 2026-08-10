@@ -2,12 +2,12 @@
 import { onBeforeUnmount, onMounted, ref } from 'vue';
 import { styles } from '../styles';
 
-/** The student stats app is a separate React application (studentstats2025).
- * It is kept as-is and loaded on demand into its own bundle chunk, so React
- * only reaches the browser when this section is opened. */
+/** The student stats app lives in the studentstats2025 submodule, which also
+ * ships standalone on stats.hufak.net. It is loaded on demand into its own
+ * bundle chunk, so it only reaches the browser when this section is opened. */
 const container = ref<HTMLDivElement | null>(null);
 const error = ref('');
-let unmountReactApp: (() => void) | null = null;
+let unmountStatsApp: (() => void) | null = null;
 
 onMounted(async () => {
 	try {
@@ -15,7 +15,7 @@ onMounted(async () => {
 			/* webpackChunkName: "studentstats" */ '../studentstats/mount'
 		);
 		if (container.value) {
-			unmountReactApp = await mountStudentStats(container.value);
+			unmountStatsApp = await mountStudentStats(container.value);
 		}
 	} catch (err) {
 		error.value = err instanceof Error ? err.message : 'Failed to load student stats';
@@ -23,8 +23,8 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => {
-	unmountReactApp?.();
-	unmountReactApp = null;
+	unmountStatsApp?.();
+	unmountStatsApp = null;
 });
 </script>
 

@@ -4,7 +4,6 @@ const proseMaxWidth = '65ch';
 
 const styles: Record<string, CSSProperties> = {
 	page: {
-		background: 'var(--color-main-background)',
 		height: '100%',
 		minHeight: '100%',
 		width: '100%',

@@ -29,7 +29,9 @@
 	height: 100% !important;
 	min-width: 0 !important;
 	min-height: 0 !important;
-	background-color: var(--color-main-background) !important;
+	/* deliberately no background: the navigation is translucent and blurs
+	   whatever sits behind it, which has to be the body, as in every other app.
+	   The opaque surface belongs on .app-content alone. */
 }
 
 #hufak-root #app-content-vue.app-content {

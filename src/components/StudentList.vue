@@ -5,6 +5,10 @@ import { styles } from '../styles';
 const STUDENT_LIST_ORIGIN = 'https://hufak.github.io';
 const STUDENT_LIST_URL = `${STUDENT_LIST_ORIGIN}/studentlist/`;
 
+/** §6 HSG on RIS. Bound rather than written into the template so the query
+ * string's ampersands need no escaping. */
+const HSG_PARAGRAPH_URL = 'https://www.ris.bka.gv.at/NormDokument.wxe?Abfrage=Bundesnormen&Gesetzesnummer=20008892&Artikel=&Paragraf=6&Anlage=&Uebergangsrecht=';
+
 /** Nextcloud theme values handed to the embedded app. It is a contract with
  * the studentlist repo: every token here is optional on its side, so adding
  * one never breaks an older deployment. */
@@ -37,6 +41,13 @@ const frameHeight = computed(() => Math.max(reportedHeight.value, availableHeigh
 const measureAvailableHeight = () => {
 	const top = frame.value?.getBoundingClientRect().top ?? 0;
 	availableHeight.value = Math.max(320, Math.floor(window.innerHeight - top));
+};
+
+const disclosureStyle = {
+	...styles.collapsibleSection,
+	marginBottom: '16px',
+	width: 'fit-content',
+	maxWidth: '100%',
 };
 
 const readTheme = (): Record<string, string> => {
@@ -106,20 +117,43 @@ onBeforeUnmount(() => {
 <template>
 	<section :style="styles.fullWidthSection">
 		<div :style="styles.proseSectionContent">
-			<h2>Student list</h2>
-			<p :style="styles.introText">
-				Filter and re-export the student list spreadsheet. This embeds the live version of
-				<a :href="STUDENT_LIST_URL" target="_blank" rel="noreferrer" :style="styles.inlineLink">
-					hufak.github.io/studentlist
-				</a>; spreadsheets are processed in your browser and never uploaded.
-			</p>
+			<h2>Studierendenevidenz</h2>
+			<!-- collapsed by default so the embed keeps the space; the description
+			     stays one click away rather than being dropped entirely -->
+			<!-- expanding shifts the frame down, so the space left below it changes -->
+			<details :style="disclosureStyle" @toggle="measureAvailableHeight">
+				<summary :style="styles.collapsibleSummary">What is this?</summary>
+				<div :style="styles.collapsibleContent">
+					<p :style="styles.hintText">
+						A tool for filtering and re-exporting the Studierendenevidenz spreadsheet. It
+						embeds the live version of
+						<a :href="STUDENT_LIST_URL" target="_blank" rel="noreferrer" :style="styles.inlineLink">
+							hufak.github.io/studentlist
+						</a>; spreadsheets are processed in your browser and never leave your computer.
+					</p>
+					<p :style="styles.hintText">
+						The Evidenz is the register of all student data that Hufak receives every
+						semester under
+						<a :href="HSG_PARAGRAPH_URL" target="_blank" rel="noreferrer" :style="styles.inlineLink">
+							§6 HSG
+						</a>: names, matriculation numbers, gender, nationality, date of birth,
+						addresses at the place of study and at home, email addresses and the
+						degree programmes they are enrolled in.
+					</p>
+					<p :style="styles.hintText">
+						Every Hufak member can get access to the extracts of this data that are
+						relevant for your student representation. Please contact the Sekretariat if
+						you would like to receive an extract. Data protection regulations apply.
+					</p>
+				</div>
+			</details>
 		</div>
 		<iframe
 			ref="frame"
 			class="hufak-embed-frame"
 			:src="frameSrc"
 			:style="{ height: `${frameHeight}px` }"
-			title="Student list"
+			title="Studierendenevidenz"
 			@load="sendTheme" />
 	</section>
 </template>

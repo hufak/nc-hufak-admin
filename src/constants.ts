@@ -28,7 +28,7 @@ const VALID_SECTION_KEYS = Object.values(SECTION_KEYS) as SectionKey[];
 const SECTIONS = [
   {
     key: SECTION_KEYS.STUDENT_LIST,
-    label: "Student list",
+    label: "Studierendenevidenz",
     description: "Filter and re-export the student list spreadsheet.",
     iconClass: "icon-category-organization",
     requiresAdmin: false,

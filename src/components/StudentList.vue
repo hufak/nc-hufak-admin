@@ -116,7 +116,7 @@ onBeforeUnmount(() => {
 
 <template>
 	<section :style="styles.fullWidthSection">
-		<div :style="styles.proseSectionContent">
+		<div :style="styles.proseContent">
 			<h2>Studierendenevidenz</h2>
 			<!-- collapsed by default so the embed keeps the space; the description
 			     stays one click away rather than being dropped entirely -->

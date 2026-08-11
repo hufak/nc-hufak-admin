@@ -1,7 +1,5 @@
 import type { CSSProperties } from 'vue';
 
-const proseMaxWidth = '65ch';
-
 const styles: Record<string, CSSProperties> = {
 	page: {
 		height: '100%',
@@ -21,13 +19,9 @@ const styles: Record<string, CSSProperties> = {
 		width: '100%',
 		maxWidth: 'none',
 	},
-	proseSectionContent: {
-		width: '100%',
-		maxWidth: proseMaxWidth,
-	},
 	proseContent: {
 		width: '100%',
-		maxWidth: proseMaxWidth,
+		maxWidth: 'var(--hufak-prose)',
 	},
 	form: {
 		display: 'grid',
@@ -558,7 +552,7 @@ const styles: Record<string, CSSProperties> = {
 		padding: '10px 12px',
 		fontSize: '13px',
 		fontFamily: 'monospace',
-		maxWidth: proseMaxWidth,
+		maxWidth: 'var(--hufak-prose)',
 		resize: 'vertical',
 	},
 	signatureEditorLayout: {

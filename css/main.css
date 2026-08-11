@@ -1,3 +1,10 @@
+#hufak-root {
+	/* Reading measure for running text. Nextcloud has no token for it, but Text
+	   sets --text-editor-max-width to min(80ch, 100%), so 80ch is the prose
+	   width users see everywhere else in the instance. */
+	--hufak-prose: min(80ch, 100%);
+}
+
 #content,
 #content-vue {
 	width: 100% !important;

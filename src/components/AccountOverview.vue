@@ -280,7 +280,7 @@ const promoteConfirmSetting = computed(() =>
 				</div>
 			</div>
 		</div>
-		<div :style="styles.proseSectionContent">
+		<div :style="styles.proseContent">
 			<h2>Account overview</h2>
 			<p :style="styles.introText">
 				Hufak-specific Nextcloud account and NextSnapMail email settings overview and
@@ -353,7 +353,7 @@ const promoteConfirmSetting = computed(() =>
 				</tbody>
 			</table>
 		</div>
-		<div :style="styles.proseSectionContent">
+		<div :style="styles.proseContent">
 			<h3 :style="styles.subheading">Disabled accounts</h3>
 		</div>
 		<div :style="styles.tableWrapper">

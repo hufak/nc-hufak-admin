@@ -10,6 +10,7 @@ import AppOrderDefaults from './AppOrderDefaults.vue';
 import DashboardWidgetDefaults from './DashboardWidgetDefaults.vue';
 import StudentStats from './StudentStats.vue';
 import StudentList from './StudentList.vue';
+import ContactList from './ContactList.vue';
 import AppNavigation from './AppNavigation.vue';
 import type { NavigationGroup } from './navigationTypes';
 import {
@@ -65,6 +66,7 @@ const navigationGroups = computed<NavigationGroup[]>(() =>
 					key: section.key,
 					name: section.label,
 					icon: section.iconClass,
+					iconPath: 'iconPath' in section ? section.iconPath : undefined,
 					href: buildSectionUrl(section.key),
 				}]
 				: [];
@@ -135,6 +137,7 @@ const openConfigureMailForUser = (uid: string) => {
 					:visible-section-keys="visibleSectionKeys" />
 				<StudentList v-else-if="currentSection === SECTION_KEYS.STUDENT_LIST" />
 				<StudentStats v-else-if="currentSection === SECTION_KEYS.STUDENT_STATS" />
+				<ContactList v-else-if="currentSection === SECTION_KEYS.CONTACT_LIST" />
 				<AddAccount
 					v-else-if="currentSection === SECTION_KEYS.ADD_ACCOUNT"
 					:email-domain="emailDomain" />

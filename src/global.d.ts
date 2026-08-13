@@ -1,6 +1,8 @@
 declare const OC: {
 	requestToken: string
 	generateUrl: (path: string) => string
+	/** `<webroot>/ocs/v<version>.php/<service>/`, i.e. with a trailing slash */
+	linkToOCS: (service: string, version: number) => string
 	filePath: (app: string, type: string, file: string) => string
 }
 

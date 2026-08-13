@@ -170,3 +170,34 @@ export interface SharedMailboxValueNode {
 }
 
 export type SharedMailboxNode = SharedMailboxObjectNode | SharedMailboxValueNode
+
+/** One option of a Tables `selection` column: cells store the option id, so the
+ * label has to be looked up on the column. */
+export interface TablesSelectionOption {
+	id?: number | string
+	label?: string
+}
+
+export interface TablesView {
+	id: number
+	title?: string
+	description?: string
+}
+
+export interface TablesColumn {
+	id: number
+	title?: string
+	type?: string
+	selectionOptions?: TablesSelectionOption[] | null
+}
+
+export interface TablesCell {
+	columnId: number
+	value: JsonValue
+}
+
+export interface TablesRow {
+	id: number
+	/** only carries the cells that have a value, so it is keyed by column id */
+	data?: TablesCell[] | null
+}

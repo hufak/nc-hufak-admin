@@ -26,10 +26,16 @@ const emit = defineEmits<{ (event: 'select', key: string): void }>();
 						v-for="entry in group.entries"
 						:key="entry.key"
 						:name="entry.name"
-						:icon="entry.icon"
+						:icon="entry.iconPath ? '' : entry.icon"
 						:href="entry.href"
 						:active="entry.key === activeKey"
-						@click="$event.preventDefault(); emit('select', entry.key)" />
+						@click="$event.preventDefault(); emit('select', entry.key)">
+						<template v-if="entry.iconPath" #icon>
+							<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+								<path fill="currentColor" :d="entry.iconPath" />
+							</svg>
+						</template>
+					</NcAppNavigationItem>
 				</template>
 			</NcAppNavigationList>
 		</template>

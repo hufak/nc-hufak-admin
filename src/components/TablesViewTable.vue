@@ -23,7 +23,7 @@ const NcRichText = defineAsyncComponent(async () =>
 
 /** The printed lists leave the house, so their heading names the body they
  * belong to rather than just the view. */
-const PRINT_TITLE_PREFIX = 'Hufak(ÖH)';
+const PRINT_TITLE_PREFIX = 'Hufak-ÖH';
 
 const descriptionStyle: CSSProperties = {
 	...styles.hintText,

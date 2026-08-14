@@ -38,14 +38,15 @@ const SECTIONS = [
     key: SECTION_KEYS.CONTACT_LIST,
     label: "Contact list",
     description:
-      "Read-only rendering of the Hufak contact list, with the Schlüsselliste extracts as printable overlays.",
+      "Who is on the Hufak team and how to reach them, plus the two Schlüssellisten as printable A4 extracts.",
     iconClass: "icon-group",
     requiresAdmin: false,
   },
   {
     key: SECTION_KEYS.STUDENT_LIST,
     label: "Studierendenevidenz",
-    description: "Filter and re-export the student list spreadsheet.",
+    description:
+      "Filter the Studierendenevidenz spreadsheet and re-export the extract you need.",
     iconClass: "icon-category-organization",
     iconPath: MDI_TABLE,
     requiresAdmin: false,
@@ -53,7 +54,8 @@ const SECTIONS = [
   {
     key: SECTION_KEYS.STUDENT_STATS,
     label: "Student statistics",
-    description: "View Hufak student statistics tools.",
+    description:
+      "An overview of how the students of the Angewandte are distributed across the degree programmes, and by gender, fee status and where they come from.",
     iconClass: "icon-category-monitoring",
     iconPath: MDI_CHART_BAR,
     requiresAdmin: false,
@@ -120,7 +122,7 @@ const SECTION_GROUPS = [
     requiresAdmin: false,
   },
   {
-    label: "Nextcloud accounts",
+    label: "Nextcloud",
     items: [
       SECTION_KEYS.ACCOUNT_OVERVIEW,
       SECTION_KEYS.ADD_ACCOUNT,

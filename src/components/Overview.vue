@@ -20,7 +20,7 @@ const visibleGroups = computed(() => {
 <template>
 	<section :style="styles.formSection">
 		<div :style="styles.proseContent">
-			<h2>Hufak account configuration</h2>
+			<h2>Hufak tools and settings</h2>
 			<div v-for="group in visibleGroups" :key="group.label">
 				<h3 :style="styles.subheading">{{ group.label }}</h3>
 				<ul :style="styles.overviewList">

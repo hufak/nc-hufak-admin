@@ -142,8 +142,14 @@ onBeforeUnmount(() => {
 					</p>
 					<p :style="styles.hintText">
 						Every Hufak member can get access to the extracts of this data that are
-						relevant for your student representation. Please contact the Sekretariat if
-						you would like to receive an extract. Data protection regulations apply.
+						relevant for your student representation. Please submit
+						<a
+							href="https://cloud.hufak.net/public.php/dav/files/studierendenverzeichnis/?accept=zip"
+							target="_blank"
+							rel="noopener noreferrer"
+							:style="styles.inlineLink"
+						>this form</a> to Sekretariat if
+						you would like to receive an extract.
 					</p>
 				</div>
 			</details>

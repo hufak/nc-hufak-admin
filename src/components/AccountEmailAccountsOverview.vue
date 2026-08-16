@@ -49,7 +49,6 @@ const props = withDefaults(
 		onDeleteEntry?: (payload: DeleteEntryPayload) => Promise<string>
 		onSetIdentitySignature?: (payload: SetIdentitySignaturePayload) => void
 		onEditAccount?: (payload: EditAccountPayload) => void
-		onAddAdditionalAccount?: (uid: string) => void
 		sharedPrimaryAccountUserUids?: string[]
 	}>(),
 	{
@@ -57,7 +56,6 @@ const props = withDefaults(
 		onDeleteEntry: undefined,
 		onSetIdentitySignature: undefined,
 		onEditAccount: undefined,
-		onAddAdditionalAccount: undefined,
 		sharedPrimaryAccountUserUids: () => [],
 	},
 );
@@ -665,22 +663,6 @@ const confirmTemplateSignature = async () => {
 				</li>
 			</template>
 
-			<li v-if="editable" :style="styles.additionalAccountTreeRow">
-				<div :style="styles.identityEntryRow">
-					<span :style="additionalAccountCellStyle">
-						<span :style="styles.treeConnector" aria-hidden="true" />
-						<button
-							type="button"
-							:style="styles.mailboxAddButton"
-							title="Add additional account"
-							aria-label="Add additional account"
-							@click="onAddAdditionalAccount?.(user.uid)">
-							+
-						</button>
-					</span>
-					<div />
-				</div>
-			</li>
 		</ul>
 
 		<div

@@ -8,8 +8,10 @@ export type SectionKey =
   | "mailbox-names"
   | "account-overview"
   | "signature-template"
+  | "account-info-template"
   | "app-order"
-  | "dashboard-widgets";
+  | "dashboard-widgets"
+  | "kas-api";
 
 const SECTION_KEYS = {
   CONTACT_LIST: "contact-list",
@@ -21,8 +23,10 @@ const SECTION_KEYS = {
   MAILBOX_NAMES: "mailbox-names",
   ACCOUNT_OVERVIEW: "account-overview",
   SIGNATURE_TEMPLATE: "signature-template",
+  ACCOUNT_INFO_TEMPLATE: "account-info-template",
   APP_ORDER: "app-order",
   DASHBOARD_WIDGETS: "dashboard-widgets",
+  KAS_TEST: "kas-api",
 } as const satisfies Record<string, SectionKey>;
 
 /** Icons Nextcloud ships no class for, as Material Design Icons paths:
@@ -30,13 +34,15 @@ const SECTION_KEYS = {
 const MDI_CHART_BAR = "M22,21H2V3H4V19H6V10H10V19H12V6H16V19H18V14H22V21Z";
 const MDI_TABLE =
   "M5,4H19A2,2 0 0,1 21,6V18A2,2 0 0,1 19,20H5A2,2 0 0,1 3,18V6A2,2 0 0,1 5,4M5,8V12H11V8H5M13,8V12H19V8H13M5,14V18H11V14H5M13,14V18H19V14H13Z";
+const MDI_SORTED_LIST =
+  "M3,5H5V7H3V5M7,5H21V7H7V5M3,11H5V13H3V11M7,11H21V13H7V11M3,17H5V19H3V17M7,17H21V19H7V17Z";
 
 const VALID_SECTION_KEYS = Object.values(SECTION_KEYS) as SectionKey[];
 
 const SECTIONS = [
   {
     key: SECTION_KEYS.CONTACT_LIST,
-    label: "Contact list",
+    label: "Hufak contact list",
     description:
       "Who is on the Hufak team and how to reach them, plus the two Schlüssellisten as printable A4 extracts.",
     iconClass: "icon-group",
@@ -89,18 +95,33 @@ const SECTIONS = [
     iconClass: "icon-rename",
   },
   {
+    key: SECTION_KEYS.ACCOUNT_INFO_TEMPLATE,
+    label: "Account info template",
+    description:
+      "Edit the Markdown template used for the printable new-account information sheet.",
+    iconClass: "icon-category-office",
+  },
+  {
     key: SECTION_KEYS.DASHBOARD_WIDGETS,
     label: "Nextcloud dashboard widgets",
     description:
       "Edit the global default dashboard widget layout used for new accounts.",
-    iconClass: "icon-category-customization",
+    iconClass: "icon-home",
   },
   {
     key: SECTION_KEYS.APP_ORDER,
     label: "Nextcloud app order",
     description:
       "Edit and validate the global default app-order JSON before saving it.",
-    iconClass: "icon-category-office",
+    iconClass: "icon-menu",
+    iconPath: MDI_SORTED_LIST,
+  },
+  {
+    key: SECTION_KEYS.KAS_TEST,
+    label: "KAS API test",
+    description: "Test ALL-INKL KAS API credentials and inspect basic account statistics.",
+    iconClass: "icon-category-monitoring",
+    requiresAdmin: true,
   },
 ] as const satisfies readonly {
   key: SectionKey;
@@ -113,7 +134,7 @@ const SECTIONS = [
 
 const SECTION_GROUPS = [
   {
-    label: "Hufak tools",
+    label: "Hufak data",
     items: [
       SECTION_KEYS.CONTACT_LIST,
       SECTION_KEYS.STUDENT_STATS,
@@ -122,10 +143,17 @@ const SECTION_GROUPS = [
     requiresAdmin: false,
   },
   {
-    label: "Nextcloud",
+    label: "Accounts",
     items: [
       SECTION_KEYS.ACCOUNT_OVERVIEW,
       SECTION_KEYS.ADD_ACCOUNT,
+    ],
+    requiresAdmin: true,
+  },
+  {
+    label: "Nextcloud configuration",
+    items: [
+      SECTION_KEYS.ACCOUNT_INFO_TEMPLATE,
       SECTION_KEYS.APP_ORDER,
       SECTION_KEYS.DASHBOARD_WIDGETS,
     ],
@@ -134,6 +162,11 @@ const SECTION_GROUPS = [
   {
     label: "NextSnapMail settings",
     items: [SECTION_KEYS.MAILBOX_NAMES, SECTION_KEYS.SIGNATURE_TEMPLATE],
+    requiresAdmin: true,
+  },
+  {
+    label: "KAS",
+    items: [SECTION_KEYS.KAS_TEST],
     requiresAdmin: true,
   },
 ] as const satisfies readonly {

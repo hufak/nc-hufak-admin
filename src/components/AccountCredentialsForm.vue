@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { styles } from '../styles';
+import NcButton from '@nextcloud/vue/components/NcButton';
 import MailboxCredentialsFields from './MailboxCredentialsFields.vue';
 
 withDefaults(
@@ -54,19 +55,19 @@ const emit = defineEmits<{
 			@update:email="emit('update:email', $event)"
 			@update:password="emit('update:password', $event)" />
 		<div :style="styles.modalButtonRow">
-			<button
+			<NcButton
 				type="submit"
 				:disabled="submitting || !email || !password"
-				:style="styles.submitButton">
+				variant="primary">
 				{{ submitting ? 'Setting...' : submitLabel }}
-			</button>
-			<button
+			</NcButton>
+			<NcButton
 				v-if="cancellable"
 				type="button"
-				:style="styles.clearButton"
+				variant="secondary"
 				@click="emit('cancel')">
 				{{ cancelLabel }}
-			</button>
+			</NcButton>
 		</div>
 		<textarea
 			v-if="showStatus"

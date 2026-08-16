@@ -8,6 +8,7 @@
     "dev": "webpack --mode development --watch"
   },
   "dependencies": {
+    "@nextcloud/dialogs": "^3.1.2",
     "@nextcloud/vue": "^9.5.0",
     "css-loader": "^7.1.4",
     "i18next": "^25.10.4",

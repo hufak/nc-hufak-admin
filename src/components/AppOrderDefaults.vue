@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import SettingDefaultsEditor from './SettingDefaultsEditor.vue';
+import { styles } from '../styles';
 
 function getJsonValidationMessage(value: string): string {
 	const trimmed = value.trim();
@@ -27,11 +28,19 @@ const readApporder = (data: Record<string, unknown>) =>
 
 <template>
 	<SettingDefaultsEditor
-		title="Nextcloud app order"
+		title="Nextcloud default app order"
 		setting-name="app order"
 		url="/apps/hufak/api/settings/apporder"
 		payload-key="apporder"
 		:read-value="readApporder"
 		:validate="getJsonValidationMessage"
-		placeholder="Enter apporder JSON..." />
+		placeholder="Enter apporder JSON...">
+		<template #intro>
+			<p :style="styles.introText">
+				This app order only controls the order of apps in the left-side menu. The top menu order is configured in the Custom Menu app’s
+				<a href="/settings/admin/side_menu" :style="styles.inlineLink">Top menu settings</a>.
+				Changes here apply only to newly created accounts; applying them to existing accounts can override users’ own changes.
+			</p>
+		</template>
+	</SettingDefaultsEditor>
 </template>

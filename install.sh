@@ -21,7 +21,8 @@ scp -r appinfo lib img js css templates "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_
 
 # the defaults the backend reads from the app root
 scp hufak_default_apporder.json hufak_default_shared_mailboxes.json \
-	hufak_signature_template.txt "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/"
+	hufak_signature_template.txt hufak_default_new_account_information_sheet.md \
+	"${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/"
 
 # the student stats CSVs, served through the app's student-stats API route
 scp -r studentstats2025/public "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/studentstats2025/"

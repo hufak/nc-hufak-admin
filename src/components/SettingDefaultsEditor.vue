@@ -79,12 +79,14 @@ const save = async () => {
 	<section :style="styles.formSection">
 		<div :style="styles.proseContent">
 			<h2>{{ title }}</h2>
-			<p :style="styles.introText">
-				Changes to this setting only apply to newly created accounts. To roll them out to
-				existing accounts, apply the {{ settingName }} per account in the
-				<a :href="accountOverviewUrl" :style="styles.inlineLink" @click.prevent="goToAccountOverview">account overview</a>.
-				Note that this overrides any changes those users may have made themselves.
-			</p>
+			<slot name="intro">
+				<p :style="styles.introText">
+					Changes to this setting only apply to newly created accounts. To roll them out to
+					existing accounts, apply the {{ settingName }} per account in the
+					<a :href="accountOverviewUrl" :style="styles.inlineLink" @click.prevent="goToAccountOverview">account overview</a>.
+					Note that this overrides any changes those users may have made themselves.
+				</p>
+			</slot>
 		</div>
 		<form :style="styles.form" @submit.prevent="save">
 			<textarea

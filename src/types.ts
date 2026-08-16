@@ -68,6 +68,33 @@ export interface UserCreateResponse {
 	password?: string
 	welcomeEmailSent?: boolean
 	welcomeEmailError?: string
+	welcomeEmailDeferred?: boolean
+}
+
+export interface KasMailboxCreateResponse {
+	message?: string
+	email?: string
+	mailboxPassword?: string
+}
+
+export interface KasTestResponse {
+	message?: string
+	statistics?: {
+		domainCount?: number
+		mailboxCount?: number
+		resources?: JsonValue | unknown
+	}
+}
+
+export interface KasMailAccountsResponse {
+	message?: string
+	accounts?: unknown
+}
+
+export interface KasTemporaryMailboxResponse {
+	message?: string
+	email?: string
+	mailboxPassword?: string
 }
 
 export interface FreescoutUserResponse {
@@ -92,6 +119,11 @@ export interface SnappyMailSettingsResponse {
 }
 
 export interface SignatureTemplateResponse {
+	template?: string
+	message?: string
+}
+
+export interface NewAccountTemplateResponse {
 	template?: string
 	message?: string
 }

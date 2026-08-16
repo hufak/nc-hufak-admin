@@ -15,12 +15,14 @@ const props = withDefaults(
 		emailPlaceholder?: string
 		passwordPlaceholder?: string
 		emailSuggestions?: string[]
+		showEmailInput?: boolean
 	}>(),
 	{
 		disabled: false,
 		emailPlaceholder: 'e-mail',
 		passwordPlaceholder: 'Password',
 		emailSuggestions: () => [],
+		showEmailInput: true,
 	},
 );
 
@@ -38,8 +40,9 @@ const passwordNoteStyle = { ...styles.hintText, margin: 0 };
 </script>
 
 <template>
-	<label :style="styles.fieldLabel" :for="emailId">{{ label }}</label>
-	<div :style="styles.mailboxRow">
+	<template v-if="showEmailInput">
+		<label :style="styles.fieldLabel" :for="emailId">{{ label }}</label>
+		<div :style="styles.mailboxRow">
 		<input
 			:id="emailId"
 			type="email"
@@ -55,7 +58,9 @@ const passwordNoteStyle = { ...styles.hintText, margin: 0 };
 		<datalist v-if="emailSuggestionsId" :id="emailSuggestionsId">
 			<option v-for="suggestion in emailSuggestions" :key="suggestion" :value="suggestion" />
 		</datalist>
-		<div class="hufak-mailbox-password-row">
+		</div>
+	</template>
+	<div class="hufak-mailbox-password-row">
 			<input
 				:id="passwordId"
 				type="password"
@@ -68,13 +73,12 @@ const passwordNoteStyle = { ...styles.hintText, margin: 0 };
 				:style="passwordInputStyle"
 				@input="emit('update:password', ($event.target as HTMLInputElement).value)">
 			<p class="hufak-mailbox-password-note" :style="passwordNoteStyle">
-				(copy password over from
+				Mailbox password not stored in KAS; reset it or request it from the mailbox owner
 				<a
 					href="https://kas.all-inkl.com/email/email-account/"
 					target="_blank"
 					rel="noreferrer"
-					:style="styles.inlineLink">kas.all-inkl.com</a>)
+				:style="styles.inlineLink">in KAS</a>.
 			</p>
-		</div>
 	</div>
 </template>

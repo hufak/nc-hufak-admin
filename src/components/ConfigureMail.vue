@@ -2,10 +2,15 @@
 import { computed, onMounted, ref, watch } from 'vue';
 import { apiRequest } from '../api';
 import { SECTION_KEYS, updateUrlSection } from '../constants';
+import { extractAdditionalAccountEmails } from '../utils/accountUtils';
 import AccountEmailAccountsOverview from './AccountEmailAccountsOverview.vue';
 import AccountCredentialsForm from './AccountCredentialsForm.vue';
 import AccountCredentialsModal from './AccountCredentialsModal.vue';
+import MailboxCredentialsFields from './MailboxCredentialsFields.vue';
 import { styles } from '../styles';
+import NcButton from '@nextcloud/vue/components/NcButton';
+import NcSelect from '@nextcloud/vue/components/NcSelect';
+import { showSuccess } from '@nextcloud/dialogs';
 import type {
 	DeleteEntryPayload,
 	EmailDomainResponse,
@@ -27,18 +32,35 @@ const userLookupError = ref('');
 const emailSuggestions = ref<string[]>([]);
 const sharedPrimaryAccountUserUids = ref<string[]>([]);
 const editingAccountCredentials = ref<{ uid: string; email: string } | null>(null);
-const addingAdditionalAccount = ref<{ uid: string; primaryEmail: string } | null>(null);
 const editingEmail = ref('');
 const editingPassword = ref('');
 const editingSubmitting = ref(false);
 const editingStatus = ref('');
 const setupResultModal = ref<{ title: string; message: string } | null>(null);
+const kasMailboxes = ref<string[]>([]);
+const mailboxPasswordAvailability = ref<Record<string, boolean>>({});
+const selectedAdditionalMailbox = ref<string | null>(null);
+const loadingKasMailboxes = ref(false);
+const hasAttemptedKasMailboxLoad = ref(false);
+const kasMailboxesError = ref('');
+const addingAdditionalMailbox = ref(false);
+const primaryMailboxPasswordAvailable = ref<boolean | null>(null);
+const primaryMailboxPasswordError = ref('');
 
 const headerRowStyle = {
 	...styles.buttonRow,
 	marginBottom: '6px',
 	alignItems: 'center',
 	width: '100%',
+	maxWidth: 'var(--hufak-prose)',
+};
+const additionalMailboxSelectStyle = { width: 'min(100%, 52ch)' };
+const backToOverviewRowStyle = {
+	...styles.buttonRow,
+	marginTop: '8px',
+	width: '100%',
+	maxWidth: 'var(--hufak-prose)',
+	justifyContent: 'flex-end',
 };
 
 const navigateBackToAccountOverview = () => {
@@ -134,10 +156,16 @@ const hasConfiguredEmailAccounts = computed(() =>
 			: Object.keys(configureMailUser.value?.additionalAccounts || {}).length),
 	),
 );
-const additionalAccountNote = computed(() =>
-	addingAdditionalAccount.value
-		? `This user already has ${addingAdditionalAccount.value.primaryEmail} set as its primary account. Beware that any additional accounts you set here will be associated with the primary email account, so any other Nextcloud user who shares the same primary account will also get access to the additional accounts.`
-		: '',
+const existingAdditionalMailboxEmails = computed(() => {
+	const user = configureMailUser.value;
+	return new Set([
+		String(user?.primaryEmail || '').trim().toLowerCase(),
+		...extractAdditionalAccountEmails(user?.additionalAccounts)
+			.map(({ email }) => email.toLowerCase()),
+	].filter((email) => email !== ''));
+});
+const availableAdditionalMailboxes = computed(() =>
+	kasMailboxes.value.filter((email) => !existingAdditionalMailboxEmails.value.has(email.toLowerCase())),
 );
 
 watch([configureMailUser, hasConfiguredEmailAccounts], () => {
@@ -147,6 +175,8 @@ watch([configureMailUser, hasConfiguredEmailAccounts], () => {
 		editingPassword.value = '';
 		editingStatus.value = '';
 		editingSubmitting.value = false;
+		primaryMailboxPasswordAvailable.value = null;
+		primaryMailboxPasswordError.value = '';
 	}
 });
 
@@ -172,28 +202,33 @@ const closeAccountCredentialsEditor = () => {
 	editingSubmitting.value = false;
 };
 
-const openAdditionalAccountEditor = (uid: string) => {
-	const primaryEmail = String(configureMailUser.value?.primaryEmail || '').trim();
-	if (!uid || !primaryEmail) {
-		setupResultModal.value = {
-			title: 'Add additional account failed',
-			message: 'A primary account must be configured before adding additional accounts.',
-		};
-		return;
-	}
-	addingAdditionalAccount.value = { uid, primaryEmail };
-	editingEmail.value = '';
+const onPrimaryMailboxSelect = (email: string | null) => {
+	editingEmail.value = email || '';
 	editingPassword.value = '';
-	editingStatus.value = '';
-	editingSubmitting.value = false;
+	primaryMailboxPasswordError.value = '';
+	primaryMailboxPasswordAvailable.value = email === null
+		? null
+		: mailboxPasswordAvailability.value[email] ?? false;
 };
 
-const closeAdditionalAccountEditor = () => {
-	addingAdditionalAccount.value = null;
-	editingEmail.value = '';
-	editingPassword.value = '';
-	editingStatus.value = '';
-	editingSubmitting.value = false;
+const loadKasMailboxes = async () => {
+	if (loadingKasMailboxes.value || hasAttemptedKasMailboxLoad.value) {
+		return;
+	}
+	hasAttemptedKasMailboxLoad.value = true;
+	loadingKasMailboxes.value = true;
+	kasMailboxesError.value = '';
+	try {
+		const data = await apiRequest<{ mailboxes?: string[]; passwordAvailability?: Record<string, boolean> }>(
+			OC.generateUrl('/apps/hufak/api/kas/mailbox-addresses'),
+		);
+		kasMailboxes.value = Array.isArray(data.mailboxes) ? data.mailboxes : [];
+		mailboxPasswordAvailability.value = data.passwordAvailability || {};
+	} catch (err) {
+		kasMailboxesError.value = err instanceof Error ? err.message : 'Failed to load KAS mailboxes';
+	} finally {
+		loadingKasMailboxes.value = false;
+	}
 };
 
 const formatSnappyMailSettingsStatus = (data: SnappyMailSettingsResponse): string => {
@@ -221,10 +256,14 @@ const applyPrimaryMailboxSettings = async ({
 	uid,
 	email,
 	password = '',
-}: { uid: string; email: string; password?: string }): Promise<string> => {
+	useKasPassword = false,
+}: { uid: string; email: string; password?: string; useKasPassword?: boolean }): Promise<string> => {
 	const body = new URLSearchParams({ uid, email });
 	if (password !== '') {
 		body.set('password', password);
+	}
+	if (useKasPassword) {
+		body.set('useKasPassword', '1');
 	}
 	const data = await apiRequest<SnappyMailSettingsResponse>(
 		OC.generateUrl('/apps/hufak/api/snappymail/settings'),
@@ -240,7 +279,8 @@ const applyPrimaryMailboxSettings = async ({
 
 const submitPrimaryAccountSettingsForUid = async (uid: string) => {
 	const isInlineInitialSetup = !hasConfiguredEmailAccounts.value;
-	if (!uid || !editingEmail.value || !editingPassword.value) {
+	const useKasPassword = isInlineInitialSetup && primaryMailboxPasswordAvailable.value === true;
+	if (!uid || !editingEmail.value || (!useKasPassword && !editingPassword.value)) {
 		if (isInlineInitialSetup) {
 			setupResultModal.value = {
 				title: 'Set primary e-mail account failed',
@@ -258,6 +298,7 @@ const submitPrimaryAccountSettingsForUid = async (uid: string) => {
 			uid,
 			email: editingEmail.value,
 			password: editingPassword.value,
+			useKasPassword,
 		});
 		if (isInlineInitialSetup) {
 			editingAccountCredentials.value = null;
@@ -283,22 +324,18 @@ const submitPrimaryAccountSettingsForUid = async (uid: string) => {
 	}
 };
 
-const submitAdditionalAccountSettings = async () => {
-	const uid = addingAdditionalAccount.value?.uid || '';
-	if (!uid || !editingEmail.value || !editingPassword.value) {
-		setupResultModal.value = {
-			title: 'Add additional account failed',
-			message: 'Please provide e-mail and password.',
-		};
+const addSelectedAdditionalMailbox = async (email: string | null) => {
+	const uid = resolvedUid.value;
+	if (!uid || !email) {
 		return;
 	}
 
-	editingSubmitting.value = true;
+	addingAdditionalMailbox.value = true;
 	try {
 		const body = new URLSearchParams({
 			uid,
-			email: editingEmail.value.trim(),
-			password: editingPassword.value,
+			email,
+			useKasPassword: '1',
 		});
 		const response = await apiRequest<{ message?: string }>(
 			OC.generateUrl('/apps/hufak/api/snappymail/additional-account'),
@@ -309,19 +346,15 @@ const submitAdditionalAccountSettings = async () => {
 			},
 		);
 		await loadMailboxOverview(uid);
-		closeAdditionalAccountEditor();
-		setupResultModal.value = {
-			title: 'Additional account added',
-			message: response.message || 'Additional account added.',
-		};
+		showSuccess(response.message || 'Additional account added.');
 	} catch (err) {
-		closeAdditionalAccountEditor();
 		setupResultModal.value = {
 			title: 'Add additional account failed',
 			message: err instanceof Error ? err.message : 'Failed to add additional account',
 		};
 	} finally {
-		editingSubmitting.value = false;
+		selectedAdditionalMailbox.value = null;
+		addingAdditionalMailbox.value = false;
 	}
 };
 
@@ -436,7 +469,9 @@ const deleteMailboxEntry = async (payload: DeleteEntryPayload): Promise<string> 
 				},
 			);
 			await loadMailboxOverview(payload.uid || selectedUid.value);
-			return response.message || 'Additional account deleted.';
+			const message = response.message || 'Additional account deleted.';
+			showSuccess(message);
+			return message;
 		} catch (err) {
 			throw new Error(
 				err instanceof Error ? err.message : 'Failed to delete additional e-mail account',
@@ -455,16 +490,6 @@ const deleteMailboxEntry = async (payload: DeleteEntryPayload): Promise<string> 
 <template>
 	<section :style="styles.formSection">
 		<div :style="headerRowStyle">
-			<button
-				type="button"
-				:style="styles.clearButton"
-				aria-label="Back to account overview"
-				title="Back to account overview"
-				@click="navigateBackToAccountOverview">
-				<svg viewBox="0 0 24 24" aria-hidden="true" :style="styles.squareIcon">
-					<path fill="currentColor" d="M20 11H7.83L13.42 5.41L12 4L4 12L12 20L13.41 18.59L7.83 13H20V11Z" />
-				</svg>
-			</button>
 			<h2 style="margin: 0">
 				<template v-if="resolvedUid">
 					NextSnapMail accounts for user
@@ -472,6 +497,16 @@ const deleteMailboxEntry = async (payload: DeleteEntryPayload): Promise<string> 
 				</template>
 				<template v-else>NextSnapMail accounts</template>
 			</h2>
+		</div>
+		<div :style="backToOverviewRowStyle">
+			<NcButton type="button" variant="secondary" @click="navigateBackToAccountOverview">
+				<template #icon>
+					<svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
+						<path fill="currentColor" d="M20 11H7.83L13.42 5.41L12 4L4 12L12 20L13.41 18.59L7.83 13H20V11Z" />
+					</svg>
+				</template>
+				Back to account overview
+			</NcButton>
 		</div>
 		<div :style="styles.form">
 			<div :style="styles.proseContent">
@@ -495,7 +530,6 @@ const deleteMailboxEntry = async (payload: DeleteEntryPayload): Promise<string> 
 				:on-delete-entry="deleteMailboxEntry"
 				:on-set-identity-signature="updateIdentitySignature"
 				:on-edit-account="openAccountCredentialsEditor"
-				:on-add-additional-account="openAdditionalAccountEditor"
 				:shared-primary-account-user-uids="sharedPrimaryAccountUserUids">
 				<template v-if="configureMailUser" #emptyEditable>
 					<div :style="styles.form">
@@ -503,23 +537,58 @@ const deleteMailboxEntry = async (payload: DeleteEntryPayload): Promise<string> 
 							This Nextcloud user has no primary NextSnapMail email account associated
 							with it yet. You can set one here:
 						</p>
-						<AccountCredentialsForm
-							title="Set account"
-							:email="editingEmail"
-							:password="editingPassword"
-							:submitting="editingSubmitting"
-							status=""
-							:show-status="false"
-							submit-label="Set"
-							email-input-id="hufak-inline-mailbox-email"
-							password-input-id="hufak-inline-mailbox-password"
-							:email-suggestions="emailSuggestions"
-							@update:email="editingEmail = $event"
-							@update:password="editingPassword = $event"
-							@submit="submitPrimaryAccountSettingsForUid(configureMailUser.uid)" />
+						<form :style="styles.form" autocomplete="off" @submit.prevent="submitPrimaryAccountSettingsForUid(configureMailUser.uid)">
+							<NcSelect
+								:model-value="editingEmail || null"
+								:options="kasMailboxes"
+								:searchable="true"
+								:loading="loadingKasMailboxes"
+								:disabled="editingSubmitting"
+								input-label="Primary mailbox"
+								placeholder="Choose a mailbox"
+								:style="additionalMailboxSelectStyle"
+								@open="loadKasMailboxes"
+								@update:model-value="onPrimaryMailboxSelect" />
+							<p v-if="primaryMailboxPasswordError" :style="styles.validationMessage">{{ primaryMailboxPasswordError }}</p>
+							<MailboxCredentialsFields
+								v-if="primaryMailboxPasswordAvailable === false"
+								label="Primary mailbox"
+								email-id="hufak-inline-mailbox-email"
+								password-id="hufak-inline-mailbox-password"
+								email-name="hufak-inline-mailbox-email"
+								password-name="hufak-inline-mailbox-password"
+								:email="editingEmail"
+								:password="editingPassword"
+								:disabled="editingSubmitting"
+								:show-email-input="false"
+								@update:password="editingPassword = $event" />
+							<NcButton
+								type="submit"
+								variant="primary"
+								:disabled="editingSubmitting || !editingEmail || primaryMailboxPasswordAvailable === null || (primaryMailboxPasswordAvailable === false && !editingPassword)">
+								{{ editingSubmitting ? 'Setting...' : 'Set account' }}
+							</NcButton>
+						</form>
 					</div>
 				</template>
 			</AccountEmailAccountsOverview>
+			<div
+				v-if="configureMailUser?.primaryEmail"
+				:style="styles.proseContent">
+				<NcSelect
+					v-model="selectedAdditionalMailbox"
+					:options="availableAdditionalMailboxes"
+					:searchable="true"
+					:loading="loadingKasMailboxes || addingAdditionalMailbox"
+					:disabled="addingAdditionalMailbox"
+					input-label="Add NextSnapMail access to another mailbox"
+					placeholder="Choose an additional mailbox"
+					:style="additionalMailboxSelectStyle"
+					@open="loadKasMailboxes"
+					@update:model-value="addSelectedAdditionalMailbox" />
+				<p v-if="loadingKasMailboxes" :style="styles.hintText">Loading KAS mailboxes…</p>
+				<p v-if="kasMailboxesError" :style="styles.validationMessage">{{ kasMailboxesError }}</p>
+			</div>
 		</div>
 
 		<AccountCredentialsModal
@@ -543,30 +612,6 @@ const deleteMailboxEntry = async (payload: DeleteEntryPayload): Promise<string> 
 				@cancel="closeAccountCredentialsEditor" />
 		</AccountCredentialsModal>
 
-		<AccountCredentialsModal
-			v-if="addingAdditionalAccount"
-			@close="closeAdditionalAccountEditor">
-			<AccountCredentialsForm
-				title="Add additional account"
-				:note="additionalAccountNote"
-				label="Additional mailbox"
-				:email="editingEmail"
-				:password="editingPassword"
-				:submitting="editingSubmitting"
-				:status="editingStatus"
-				:show-status="false"
-				submit-label="Add"
-				email-input-id="hufak-additional-account-email"
-				password-input-id="hufak-additional-account-password"
-				:email-suggestions="emailSuggestions"
-				cancellable
-				cancel-label="Cancel"
-				@update:email="editingEmail = $event"
-				@update:password="editingPassword = $event"
-				@submit="submitAdditionalAccountSettings"
-				@cancel="closeAdditionalAccountEditor" />
-		</AccountCredentialsModal>
-
 		<div
 			v-if="setupResultModal"
 			:style="styles.modalBackdrop"
@@ -580,9 +625,7 @@ const deleteMailboxEntry = async (payload: DeleteEntryPayload): Promise<string> 
 					autocomplete="off"
 					:style="styles.outputBox" />
 				<div :style="styles.modalButtonRow">
-					<button type="button" :style="styles.clearButton" @click="setupResultModal = null">
-						Close
-					</button>
+					<NcButton type="button" variant="secondary" @click="setupResultModal = null">Close</NcButton>
 				</div>
 			</div>
 		</div>

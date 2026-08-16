@@ -17,6 +17,7 @@ use OCP\IGroupManager;
 use OCP\IRequest;
 use OCP\IUserManager;
 use OCP\IUserSession;
+use OCA\Hufak\Service\KasMailClient;
 use Symfony\Component\Process\Process;
 
 class ApiController extends Controller {
@@ -24,6 +25,7 @@ class ApiController extends Controller {
 	private const CONFIG_APPORDER = 'apporder';
 	private const CONFIG_SHARED_MAILBOXES = 'shared_mailboxes';
 	private const CONFIG_DASHBOARD_LAYOUT = 'dashboard_layout';
+	private const CONFIG_NEW_ACCOUNT_TEMPLATE = 'new_account_information_template';
 	private const SNAPPYMAIL_USER_CONFIG_APP = 'nextsnapmail';
 	private const SNAPPYMAIL_USER_CONFIG_EMAIL = 'nextsnapmail-email';
 	private const SNAPPYMAIL_OCC_COMMAND = 'nextsnapmail:settings';
@@ -34,6 +36,7 @@ class ApiController extends Controller {
 	private const APPDATA_FOLDER_SETTINGS = 'settings';
 	private const APPDATA_FILE_SIGNATURE_TEMPLATE = 'signature_template.txt';
 	private const DEFAULT_SIGNATURE_TEMPLATE_FILE = 'hufak_signature_template.txt';
+	private const DEFAULT_NEW_ACCOUNT_TEMPLATE_FILE = 'hufak_default_new_account_information_sheet.md';
 	private const DEFAULT_APPORDER_FILE = 'hufak_default_apporder.json';
 	private const DEFAULT_SHARED_MAILBOXES_FILE = 'hufak_default_shared_mailboxes.json';
 	private const STUDENT_STATS_PUBLIC_DIR = 'studentstats2025/public';
@@ -56,6 +59,7 @@ class ApiController extends Controller {
 		private IUserManager $userManager,
 		private IAppData $appData,
 		private IRootFolder $rootFolder,
+		private KasMailClient $kasMailClient,
 	) {
 		parent::__construct($appName, $request);
 	}
@@ -544,6 +548,7 @@ class ApiController extends Controller {
 		$username = strtolower(trim((string)$this->request->getParam('username', '')));
 		$email = trim((string)$this->request->getParam('email', ''));
 		$sendWelcomeEmail = trim((string)$this->request->getParam('sendWelcomeEmail', '')) === '1';
+		$deferWelcomeEmail = trim((string)$this->request->getParam('deferWelcomeEmail', '')) === '1';
 
 		if (!preg_match('/^([A-Z][A-Za-z]*)( [A-Z][A-Za-z]*)+$/', $fullName)) {
 			return new DataResponse([
@@ -613,7 +618,7 @@ class ApiController extends Controller {
 			$this->config->setUserValue($username, $this->appName, 'pronoun', $pronoun);
 		}
 
-		if ($sendWelcomeEmail) {
+		if ($sendWelcomeEmail && !$deferWelcomeEmail) {
 			$mailError = null;
 			try {
 				$mailHelper = \OCP\Server::get(\OCA\Settings\Mailer\NewUserMailHelper::class);
@@ -651,12 +656,204 @@ class ApiController extends Controller {
 			]);
 		}
 
+		if ($sendWelcomeEmail) {
+			return new DataResponse([
+				'message' => sprintf('User "%s" created successfully; welcome email is deferred', $username),
+				'username' => $username,
+				'welcomeEmailSent' => false,
+				'welcomeEmailDeferred' => true,
+			]);
+		}
+
 		return new DataResponse([
 			'message' => sprintf('User "%s" created successfully', $username),
 			'username' => $username,
 			'password' => $password,
 			'welcomeEmailSent' => false,
 		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function createKasMailbox(string $uid): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse(['message' => 'Admin permissions required'], Http::STATUS_FORBIDDEN);
+		}
+
+		$uid = trim($uid);
+		$email = strtolower(trim((string)$this->request->getParam('email', '')));
+		$kasLogin = trim((string)$this->request->getParam('kasLogin', ''));
+		$kasPassword = (string)$this->request->getParam('kasPassword', '');
+		if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+			return new DataResponse(['message' => 'Invalid email address'], Http::STATUS_BAD_REQUEST);
+		}
+		[$localPart, $domainPart] = explode('@', $email, 2);
+		if ($localPart === '' || $domainPart === '') {
+			return new DataResponse(['message' => 'Invalid email address'], Http::STATUS_BAD_REQUEST);
+		}
+		if (($kasLogin === '') !== ($kasPassword === '')) {
+			return new DataResponse([
+				'message' => 'Provide both temporary KAS login and password, or neither',
+			], Http::STATUS_BAD_REQUEST);
+		}
+
+		try {
+			// 24 characters, URL-safe, with upper/lowercase letters and digits.
+			$mailboxPassword = rtrim(strtr(base64_encode(random_bytes(18)), '+/', 'Aa'), '=');
+			$this->kasMailClient->createMailbox(
+				$localPart,
+				$domainPart,
+				$mailboxPassword,
+				$kasLogin === '' ? null : $kasLogin,
+				$kasPassword === '' ? null : $kasPassword,
+			);
+		} catch (\Throwable $exception) {
+			return new DataResponse([
+				'message' => $exception->getMessage(),
+			], Http::STATUS_BAD_GATEWAY);
+		}
+
+		return new DataResponse([
+			'message' => sprintf('ALL-INKL mailbox "%s" created', $email),
+			'email' => $email,
+			// Returned exactly once so an administrator can provide IMAP credentials.
+			'mailboxPassword' => $mailboxPassword,
+		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function testKasConnection(): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse(['message' => 'Admin permissions required'], Http::STATUS_FORBIDDEN);
+		}
+
+		$kasLogin = trim((string)$this->request->getParam('kasLogin', ''));
+		$kasPassword = (string)$this->request->getParam('kasPassword', '');
+		if (($kasLogin === '') !== ($kasPassword === '')) {
+			return new DataResponse([
+				'message' => 'Provide both temporary KAS login and password, or neither',
+			], Http::STATUS_BAD_REQUEST);
+		}
+
+		try {
+			$statistics = $this->kasMailClient->getBasicStatistics(
+				$kasLogin === '' ? null : $kasLogin,
+				$kasPassword === '' ? null : $kasPassword,
+			);
+		} catch (\Throwable $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], Http::STATUS_BAD_GATEWAY);
+		}
+
+		return new DataResponse([
+			'message' => 'Connected to the ALL-INKL KAS API',
+			'statistics' => $statistics,
+		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function listKasMailAccounts(): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse(['message' => 'Admin permissions required'], Http::STATUS_FORBIDDEN);
+		}
+
+		$kasLogin = trim((string)$this->request->getParam('kasLogin', ''));
+		$kasPassword = (string)$this->request->getParam('kasPassword', '');
+		if (($kasLogin === '') !== ($kasPassword === '')) {
+			return new DataResponse([
+				'message' => 'Provide both temporary KAS login and password, or neither',
+			], Http::STATUS_BAD_REQUEST);
+		}
+
+		try {
+			$accounts = $this->kasMailClient->getMailAccounts(
+				$kasLogin === '' ? null : $kasLogin,
+				$kasPassword === '' ? null : $kasPassword,
+			);
+		} catch (\Throwable $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], Http::STATUS_BAD_GATEWAY);
+		}
+
+		return new DataResponse([
+			'message' => 'Existing KAS email accounts loaded',
+			'accounts' => $accounts,
+		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function createTemporaryKasMailbox(): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse(['message' => 'Admin permissions required'], Http::STATUS_FORBIDDEN);
+		}
+
+		$kasLogin = trim((string)$this->request->getParam('kasLogin', ''));
+		$kasPassword = (string)$this->request->getParam('kasPassword', '');
+		if (($kasLogin === '') !== ($kasPassword === '')) {
+			return new DataResponse([
+				'message' => 'Provide both temporary KAS login and password, or neither',
+			], Http::STATUS_BAD_REQUEST);
+		}
+
+		try {
+			$mailboxPassword = rtrim(strtr(base64_encode(random_bytes(18)), '+/', 'Aa'), '=');
+			$this->kasMailClient->createMailbox(
+				'foo.bar',
+				'hufak.net',
+				$mailboxPassword,
+				$kasLogin === '' ? null : $kasLogin,
+				$kasPassword === '' ? null : $kasPassword,
+			);
+		} catch (\Throwable $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], Http::STATUS_BAD_GATEWAY);
+		}
+
+		return new DataResponse([
+			'message' => 'Temporary mailbox "foo.bar@hufak.net" created',
+			'email' => 'foo.bar@hufak.net',
+			'mailboxPassword' => $mailboxPassword,
+		]);
+	}
+	/** @NoAdminRequired */
+	public function listKasMailboxAddresses(): DataResponse {
+		if (!$this->currentUserIsAdmin()) return new DataResponse(['message'=>'Admin permissions required'], Http::STATUS_FORBIDDEN);
+		try { return new DataResponse($this->kasMailClient->mailboxOptions()); }
+		catch (\Throwable $e) { return new DataResponse(['message'=>$e->getMessage()], Http::STATUS_BAD_GATEWAY); }
+	}
+	/** @NoAdminRequired */
+	public function getKasMailServerSettings(): DataResponse {
+		if (!$this->currentUserIsAdmin()) return new DataResponse(['message'=>'Admin permissions required'], Http::STATUS_FORBIDDEN);
+		try { return new DataResponse(['host'=>$this->kasMailClient->mailServerHost()]); }
+		catch (\Throwable $e) { return new DataResponse(['message'=>$e->getMessage()], Http::STATUS_BAD_GATEWAY); }
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function sendUserWelcomeEmail(string $uid): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse(['message' => 'Admin permissions required'], Http::STATUS_FORBIDDEN);
+		}
+		$uid = trim($uid);
+		$user = $uid === '' ? null : $this->userManager->get($uid);
+		if ($user === null) {
+			return new DataResponse(['message' => 'Unknown user'], Http::STATUS_BAD_REQUEST);
+		}
+		try {
+			$mailHelper = \OCP\Server::get(\OCA\Settings\Mailer\NewUserMailHelper::class);
+			$mailHelper->sendMail($user, $mailHelper->generateTemplate($user, true));
+		} catch (\Throwable $exception) {
+			return new DataResponse([
+				'message' => 'Welcome email could not be sent: ' . $exception->getMessage(),
+			], Http::STATUS_BAD_GATEWAY);
+		}
+
+		return new DataResponse(['message' => sprintf('Welcome email sent to user "%s"', $uid)]);
 	}
 
 	/**
@@ -672,6 +869,14 @@ class ApiController extends Controller {
 		$uid = trim((string)$this->request->getParam('uid', ''));
 		$email = trim((string)$this->request->getParam('email', ''));
 		$password = (string)$this->request->getParam('password', '');
+		$useKasPassword = trim((string)$this->request->getParam('useKasPassword', '')) === '1';
+		if ($password === '' && $useKasPassword && $email !== '') {
+			try {
+				$password = (string)($this->kasMailClient->mailboxCredentials($email)['mail_password'] ?? '');
+			} catch (\Throwable $exception) {
+				return new DataResponse(['message' => $exception->getMessage()], Http::STATUS_BAD_GATEWAY);
+			}
+		}
 		if ($uid === '' || $email === '' || $password === '') {
 			return new DataResponse([
 				'message' => 'Parameters uid, email and password are required',
@@ -908,6 +1113,7 @@ class ApiController extends Controller {
 		$uid = trim((string)$this->request->getParam('uid', ''));
 		$email = trim((string)$this->request->getParam('email', ''));
 		$password = (string)$this->request->getParam('password', '');
+		$useKasPassword = trim((string)$this->request->getParam('useKasPassword', '')) === '1';
 		if ($uid === '' || !$this->userManager->userExists($uid)) {
 			return new DataResponse([
 				'message' => 'Unknown user',
@@ -917,6 +1123,10 @@ class ApiController extends Controller {
 			return new DataResponse([
 				'message' => 'Invalid additional account email',
 			], Http::STATUS_BAD_REQUEST);
+		}
+		if ($password === '' && $useKasPassword) {
+			try { $password = (string)($this->kasMailClient->mailboxCredentials($email)['mail_password'] ?? ''); }
+			catch (\Throwable $e) { return new DataResponse(['message' => $e->getMessage()], Http::STATUS_BAD_GATEWAY); }
 		}
 		if ($password === '') {
 			return new DataResponse([
@@ -1287,6 +1497,49 @@ class ApiController extends Controller {
 
 		return new DataResponse([
 			'message' => 'Signature template saved',
+			'template' => $template,
+		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function getNewAccountTemplate(): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse([
+				'message' => 'Admin permissions required',
+			], Http::STATUS_FORBIDDEN);
+		}
+
+		try {
+			$template = $this->readNewAccountTemplate();
+		} catch (\Throwable $exception) {
+			return new DataResponse([
+				'message' => 'Failed to load account info template',
+				'error' => $exception->getMessage(),
+			], Http::STATUS_INTERNAL_SERVER_ERROR);
+		}
+
+		return new DataResponse([
+			'template' => $template,
+		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function setNewAccountTemplate(): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse([
+				'message' => 'Admin permissions required',
+			], Http::STATUS_FORBIDDEN);
+		}
+
+		$template = (string)$this->request->getParam('template', '');
+		$this->config->setAppValue($this->appName, self::CONFIG_NEW_ACCOUNT_TEMPLATE, $template);
+
+		return new DataResponse([
+			'message' => 'Account info template saved',
 			'template' => $template,
 		]);
 	}
@@ -1999,6 +2252,24 @@ class ApiController extends Controller {
 		}
 
 		$settingsFolder->newFile(self::APPDATA_FILE_SIGNATURE_TEMPLATE, $defaultTemplate);
+		return $defaultTemplate;
+	}
+
+	private function readNewAccountTemplate(): string {
+		$template = $this->config->getAppValue($this->appName, self::CONFIG_NEW_ACCOUNT_TEMPLATE, '');
+		if ($template !== '') {
+			return $template;
+		}
+
+		$defaultTemplatePath = dirname(__DIR__, 2) . '/' . self::DEFAULT_NEW_ACCOUNT_TEMPLATE_FILE;
+		if (!is_readable($defaultTemplatePath)) {
+			throw new \RuntimeException('Default new-account template is not readable: ' . $defaultTemplatePath);
+		}
+		$defaultTemplate = file_get_contents($defaultTemplatePath);
+		if ($defaultTemplate === false) {
+			throw new \RuntimeException('Failed to read default new-account template');
+		}
+
 		return $defaultTemplate;
 	}
 

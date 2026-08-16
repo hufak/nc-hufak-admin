@@ -30,6 +30,41 @@ return [
 			'verb' => 'POST',
 		],
 		[
+			'name' => 'api#createKasMailbox',
+			'url' => '/api/accounts/{uid}/kas-mailbox',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'api#sendUserWelcomeEmail',
+			'url' => '/api/accounts/{uid}/welcome-email',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'api#testKasConnection',
+			'url' => '/api/kas/test',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'api#listKasMailAccounts',
+			'url' => '/api/kas/mail-accounts',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'api#createTemporaryKasMailbox',
+			'url' => '/api/kas/temporary-mailbox',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'api#listKasMailboxAddresses',
+			'url' => '/api/kas/mailbox-addresses',
+			'verb' => 'GET',
+		],
+		[
+			'name' => 'api#getKasMailServerSettings',
+			'url' => '/api/kas/mail-server-settings',
+			'verb' => 'GET',
+		],
+		[
 			'name' => 'api#runSnappymailSettings',
 			'url' => '/api/snappymail/settings',
 			'verb' => 'POST',
@@ -62,6 +97,16 @@ return [
 		[
 			'name' => 'api#setSignatureTemplate',
 			'url' => '/api/settings/signature-template',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'api#getNewAccountTemplate',
+			'url' => '/api/settings/new-account',
+			'verb' => 'GET',
+		],
+		[
+			'name' => 'api#setNewAccountTemplate',
+			'url' => '/api/settings/new-account',
 			'verb' => 'POST',
 		],
 		[

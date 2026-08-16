@@ -1,0 +1,81 @@
+{
+  "view": {
+    "category": "Nationalitätskategorie",
+    "fee": "Studiengebührenstatus",
+    "nationality": "Nationalitätenliste",
+    "gender": "Geschlecht"
+  },
+  "group": {
+    "none": "Keine",
+    "institute": "Institut",
+    "stv": "StV",
+    "level": "akademischer Grad",
+    "language": "Unterrichtssprache",
+    "admission": "Zulassungsvoraussetzung",
+    "category": "Nationalitätskategorie",
+    "continent": "Kontinent",
+    "fee": "Studiengebührenstatus"
+  },
+  "common": {
+    "students": "Studierende",
+    "noOfStudents": "Anzahl Studierende",
+    "alphabetic": "Alphabetisch",
+    "groupBy": "Gruppierung",
+    "orderBy": "Sortierung",
+    "totalNoStudents": "Gesamtzahl Studierende:",
+    "all": "Alle",
+    "allProgrammes": "Alle Programme",
+    "allCountries": "Alle Länder",
+    "allOfAngewandte": "Gesamte Angewandte",
+    "unknownProgramme": "Unbekanntes Programm",
+    "unknownCountry": "Unbekanntes Land",
+    "unassigned": "Nicht zugeordnet",
+    "total": "Gesamt"
+  },
+  "category": {
+    "euRest": "restliche EU",
+    "worldRest": "restliche Welt"
+  },
+  "fee": {
+    "exempt": "befreit",
+    "refund": "2x Gebühr, volle Rückerstattung",
+    "partial": "2x Gebühr, 50% Rückerstattung",
+    "double": "2x Gebühr"
+  },
+  "loading": {
+    "csv": "CSV-Daten werden geladen...",
+    "errorTitle": "Fehler beim Laden der Daten",
+    "errorFallback": "CSV-Daten konnten nicht geladen werden."
+  },
+  "header": {
+    "title": "Studierendenstatistik der Angewandten",
+    "summaryPrefix": "Im WS 2025/26 hatte die Angewandte",
+    "summaryRegularPlus": "ordentliche +",
+    "summaryAoOf": "\"ausserordentliche\" Studierende aus",
+    "summaryDifferentNationalities": "verschiedenen Nationalitäten mit",
+    "summaryStudiesAcross": "Belegungen in",
+    "summaryDegreeProgrammes": "Studienprogrammen.",
+    "description": "Unten kannst du die Verteilung der Studierenden nach verschiedenen Kriterien erkunden."
+  },
+  "intro": {
+    "category": "Die Nationalitätskategorie reflektiert die rechtliche Behandlung von Studierenden im Kontext eines Studiums an einer österreichischen Universität: Studierende aus deutschsprachigen Ländern sowie Südtirol die von Deutschvoraussetzungen ausgenommen sind werden unter D/A/CH zusammengefasst. Staatsangehörige mancher Nicht-EU-Länder gelten bei Aufenthalts- und Niederlassungsfragen als EU-äquivalent.",
+    "gender": "Gesetzlich kann die Universität 6 verschiedene Geschlechtskategorien erfassen (<legalLink>§ 13 UniStEV 2022</legalLink>). Aus Datenschutzgründen werden in dieser Statistik keine Geschlechtskategorien mit weniger als 5 Einträgen angezeigt.",
+    "totalSorted": "Belegungsdaten für WS 2025/26. Studienprogramme sind nach Gesamtzahl der Studierenden sortiert.",
+    "categoryShareSorted": "Belegungsdaten für WS 2025/26. Studienprogramme sind nach Kategorienanteil sortiert.",
+    "shareSorted": "Belegungsdaten für WS 2025/26. Studienprogramme sind nach Anteil {{label}} sortiert.",
+    "fee1": "österreichische und EU-äquivalente Studierende sind von Studiengebühren voll befreit, solange sie innerhalb der Mindeststudiendauer (plus Toleranzsemester) bleiben. Danach ist die einfache Gebühr zu zahlen. Alle anderen zahlen immer die doppelte Gebühr, können aber je nach Nationalität Anspruch auf volle oder teilweise Rückerstattung haben. Siehe die",
+    "feeLink": "Nationalitätenliste",
+    "fee2": "für Details dazu, welche Nationalitäten erstattungsberechtigt sind.",
+    "fee3": "Die genauen Kriterien und Formulare zu Gebührenbefreiung und Rückerstattung finden sich auf der",
+    "officeLink": "Website des Office of Student Affairs",
+    "nationalityNote": "Es wird nur eine Nationalität pro Studierende* erfasst. Daher unterschätzen diese Statistiken vermutlich die tatsächliche Vielfalt an Nationalitäten an der Angewandten, da Studierende mit Doppelstaatsbürger*innenschaft überwiegend ihre österreichische oder EU-Staatsbürger*innenschaft angeben, um von Studiengebühren befreit zu sein."
+  },
+  "tooltip": {
+    "nationalityCategory": "Nationalitätskategorie",
+    "continent": "Kontinent",
+    "tuitionFeeStatus": "Studiengebührenstatus",
+    "totalStudents": "Gesamt: {{count}} Studierende",
+    "groupTotal": "{{group}} Gesamt",
+    "groupTotalLine": "Gesamt aller Programme in dieser Gruppe: {{count}}"
+  }
+}

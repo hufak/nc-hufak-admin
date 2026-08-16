@@ -1,0 +1,81 @@
+{
+  "view": {
+    "category": "Nationality Category",
+    "fee": "Tuition Fee Status",
+    "nationality": "Nationality List",
+    "gender": "Binary Gender"
+  },
+  "group": {
+    "none": "No Grouping",
+    "institute": "Institute",
+    "stv": "STV",
+    "level": "Degree Level",
+    "language": "Study Programme Language",
+    "admission": "Admission Requirement",
+    "category": "Nationality Category",
+    "continent": "Continent",
+    "fee": "Tuition Fee Status"
+  },
+  "common": {
+    "students": "Students",
+    "noOfStudents": "No. of Students",
+    "alphabetic": "Alphabetic",
+    "groupBy": "Group by",
+    "orderBy": "Order by",
+    "totalNoStudents": "Total no. of students:",
+    "all": "All",
+    "allProgrammes": "All Programmes",
+    "allCountries": "All Countries",
+    "allOfAngewandte": "All of Angewandte",
+    "unknownProgramme": "Unknown programme",
+    "unknownCountry": "Unknown country",
+    "unassigned": "Unassigned",
+    "total": "Total"
+  },
+  "category": {
+    "euRest": "rest of EU",
+    "worldRest": "rest of world"
+  },
+  "fee": {
+    "exempt": "exempt",
+    "refund": "2x fee, full refund",
+    "partial": "2x fee, 50% refund",
+    "double": "2x fee"
+  },
+  "loading": {
+    "csv": "Loading CSV data...",
+    "errorTitle": "Data Load Error",
+    "errorFallback": "Failed to load CSV data."
+  },
+  "header": {
+    "title": "Angewandte Student Statistics",
+    "summaryPrefix": "In WS 2025/26, Angewandte had",
+    "summaryRegularPlus": "regular students +",
+    "summaryAoOf": "\"ausserordentliche\" Studierende of",
+    "summaryDifferentNationalities": "different nationalities enrolled for",
+    "summaryStudiesAcross": "studies across",
+    "summaryDegreeProgrammes": "degree programmes.",
+    "description": "Below you can explore the distribution of students according to different criteria."
+  },
+  "intro": {
+    "category": "The nationality categories used here reflect the legal treatment of students in the context of studying at an Austrian university: students from German-speaking areas of non-German speaking countries who are exempt from German language requirements are grouped under D/A/CH, while citizens of some non-EU countries are considered EU-equivalent when it comes to immigration and residency requirements.",
+    "gender": "Legally, the university records students' gender as belonging to one of 6 different gender categories (<legalLink>§ 13 UniStEV 2022</legalLink>). For privacy reasons, this statistic does not display any gender categories with fewer than 5 entries.",
+    "totalSorted": "WS 2025/26 enrollment data. Study programmes are sorted by total number of students.",
+    "categoryShareSorted": "WS 2025/26 enrollment data. Study programmes are sorted by category share.",
+    "shareSorted": "WS 2025/26 enrollment data. Study programmes are sorted by the share of {{label}}.",
+    "fee1": "Austrian and EU-equivalent students are fully exempt from paying the tuition fees as long as they stay within the minimum study time (plus tolerance semesters), after which they need to pay the single fee. All others always need to pay the double fee, but might be eligible for getting either the full or at least half refunded based on their nationality. See the",
+    "feeLink": "nationality list",
+    "fee2": "for details on which nationalities are eligible for refund.",
+    "fee3": "The exact criteria and forms for tuition fee exemption and refund can be found on the",
+    "officeLink": "Office of Student Affairs website",
+    "nationalityNote": "Note that only one nationality is registered for each student, so these statistics probably underestimate the actual diversity of nationalities at Angewandte, since students with dual citizenships have a financial incentive to register as Austrian or EU rather than any non-EU citizenship they might have."
+  },
+  "tooltip": {
+    "nationalityCategory": "Nationality category",
+    "continent": "Continent",
+    "tuitionFeeStatus": "Tuition fee status",
+    "totalStudents": "Total: {{count}} students",
+    "groupTotal": "{{group}} total",
+    "groupTotalLine": "Total of all programmes in this group: {{count}}"
+  }
+}

@@ -1,16 +1,6 @@
 <script setup lang="ts">
-import { computed, onMounted, onBeforeUnmount, ref, watch } from 'vue';
-import AddAccount from './AddAccount.vue';
-import ConfigureMail from './ConfigureMail.vue';
+import { computed, defineAsyncComponent, onMounted, onBeforeUnmount, ref, watch } from 'vue';
 import Overview from './Overview.vue';
-import AccountOverview from './AccountOverview.vue';
-import MailboxConfig from './MailboxConfig.vue';
-import SignatureTemplateDefaults from './SignatureTemplateDefaults.vue';
-import AppOrderDefaults from './AppOrderDefaults.vue';
-import DashboardWidgetDefaults from './DashboardWidgetDefaults.vue';
-import StudentStats from './StudentStats.vue';
-import StudentList from './StudentList.vue';
-import ContactList from './ContactList.vue';
 import AppNavigation from './AppNavigation.vue';
 import type { NavigationGroup } from './navigationTypes';
 import {
@@ -23,6 +13,20 @@ import {
 	updateUrlSection,
 } from '../constants';
 import type { SectionKey } from '../constants';
+
+// Sections are mutually exclusive, so loading them eagerly puts code for every
+// admin tool in the initial download. Keep the shell and navigation immediate,
+// but fetch each tool only when its section is selected.
+const AddAccount = defineAsyncComponent(() => import(/* webpackChunkName: "add-account" */ './AddAccount.vue'));
+const ConfigureMail = defineAsyncComponent(() => import(/* webpackChunkName: "configure-mail" */ './ConfigureMail.vue'));
+const AccountOverview = defineAsyncComponent(() => import(/* webpackChunkName: "account-overview" */ './AccountOverview.vue'));
+const MailboxConfig = defineAsyncComponent(() => import(/* webpackChunkName: "mailbox-config" */ './MailboxConfig.vue'));
+const SignatureTemplateDefaults = defineAsyncComponent(() => import(/* webpackChunkName: "signature-template" */ './SignatureTemplateDefaults.vue'));
+const AppOrderDefaults = defineAsyncComponent(() => import(/* webpackChunkName: "app-order" */ './AppOrderDefaults.vue'));
+const DashboardWidgetDefaults = defineAsyncComponent(() => import(/* webpackChunkName: "dashboard-widgets" */ './DashboardWidgetDefaults.vue'));
+const StudentStats = defineAsyncComponent(() => import(/* webpackChunkName: "student-stats-section" */ './StudentStats.vue'));
+const StudentList = defineAsyncComponent(() => import(/* webpackChunkName: "student-list" */ './StudentList.vue'));
+const ContactList = defineAsyncComponent(() => import(/* webpackChunkName: "contact-list" */ './ContactList.vue'));
 
 const props = defineProps<{
 	adminStatus: 'unknown' | 'admin' | 'non-admin'

@@ -77,7 +77,28 @@ class KasMailClient {
 		try {
 			[$login, $token] = $this->openSession($providedLogin, $providedPassword);
 			return $this->formatForPresentation(
-				$this->request($login, $token, 'get_mailaccounts', [], true, true),
+				$this->withoutRedundantMailForwardAddress(
+					$this->request($login, $token, 'get_mailaccounts', [], true, true),
+				),
+			);
+		} catch (\JsonException $exception) {
+			throw new \RuntimeException('Failed to prepare ALL-INKL KAS request', 0, $exception);
+		}
+	}
+
+	/** Returns the configured domain's mail forwards in the presentation format used by the admin UI. */
+	public function getMailForwards(
+		string $domain,
+		?string $providedLogin = null,
+		?string $providedPassword = null,
+	): mixed {
+		try {
+			[$login, $token] = $this->openSession($providedLogin, $providedPassword);
+			$forwards = $this->request($login, $token, 'get_mailforwards', [], true);
+			return $this->formatForPresentation(
+				$this->withoutRedundantMailForwardAddress(
+					$this->filterMailForwardsForDomain($forwards, $domain),
+				),
 			);
 		} catch (\JsonException $exception) {
 			throw new \RuntimeException('Failed to prepare ALL-INKL KAS request', 0, $exception);
@@ -206,6 +227,75 @@ class KasMailClient {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * KAS returns both records and parallel field arrays. Retain only records whose
+	 * source forward address belongs to the selected domain, while preserving the
+	 * surrounding shape so it can still be compacted into a dynamic table.
+	 */
+	private function filterMailForwardsForDomain(mixed $value, string $domain): mixed {
+		if (!is_array($value)) {
+			return null;
+		}
+
+		$fields = [];
+		foreach ($value as $key => $child) {
+			$fields[strtolower((string)$key)] = $child;
+		}
+		$forward = $fields['mail_forward'] ?? $fields['mail_forward_address'] ?? null;
+		if (is_array($forward) && array_is_list($forward)) {
+			$matchingIndexes = [];
+			foreach ($forward as $index => $address) {
+				if ($this->belongsToDomain($address, $domain)) {
+					$matchingIndexes[] = $index;
+				}
+			}
+			if ($matchingIndexes === []) {
+				return null;
+			}
+			$filtered = [];
+			foreach ($value as $key => $child) {
+				$filtered[$key] = is_array($child) && array_is_list($child)
+					? array_values(array_intersect_key($child, array_flip($matchingIndexes)))
+					: $child;
+			}
+			return $filtered;
+		}
+		if ($this->belongsToDomain($forward, $domain)) {
+			return $value;
+		}
+
+		$filtered = [];
+		foreach ($value as $key => $child) {
+			$matchingChild = $this->filterMailForwardsForDomain($child, $domain);
+			if ($matchingChild !== null && $matchingChild !== []) {
+				$filtered[$key] = $matchingChild;
+			}
+		}
+		return $filtered === [] ? null : $filtered;
+	}
+
+	private function belongsToDomain(mixed $value, string $domain): bool {
+		if (!is_string($value)) {
+			return false;
+		}
+		return str_ends_with(strtolower(trim($value)), '@' . strtolower($domain));
+	}
+
+	/** KAS returns this misspelled field alongside the correctly named duplicate. */
+	private function withoutRedundantMailForwardAddress(mixed $value): mixed {
+		if (!is_array($value)) {
+			return $value;
+		}
+		$cleaned = [];
+		foreach ($value as $key => $child) {
+			if (strtolower((string)$key) === 'mail_forward_adress') {
+				continue;
+			}
+			$cleaned[$key] = $this->withoutRedundantMailForwardAddress($child);
+		}
+		return $cleaned;
 	}
 
 	/** @return array{string, string} */

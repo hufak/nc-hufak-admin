@@ -29,6 +29,7 @@ const StudentStats = defineAsyncComponent(() => import(/* webpackChunkName: "stu
 const StudentList = defineAsyncComponent(() => import(/* webpackChunkName: "student-list" */ './StudentList.vue'));
 const ContactList = defineAsyncComponent(() => import(/* webpackChunkName: "contact-list" */ './ContactList.vue'));
 const KasTest = defineAsyncComponent(() => import(/* webpackChunkName: "kas-test" */ './KasTest.vue'));
+const EmailForwards = defineAsyncComponent(() => import(/* webpackChunkName: "email-forwards" */ './EmailForwards.vue'));
 
 const props = defineProps<{
 	adminStatus: 'unknown' | 'admin' | 'non-admin'
@@ -165,6 +166,7 @@ const openConfigureMailForUser = (uid: string) => {
 				<DashboardWidgetDefaults
 					v-else-if="currentSection === SECTION_KEYS.DASHBOARD_WIDGETS" />
 				<KasTest v-else-if="currentSection === SECTION_KEYS.KAS_TEST" />
+				<EmailForwards v-else-if="currentSection === SECTION_KEYS.EMAIL_FORWARDS" />
 				<StudentStats v-else />
 			</div>
 		</main>

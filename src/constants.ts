@@ -11,7 +11,8 @@ export type SectionKey =
   | "account-info-template"
   | "app-order"
   | "dashboard-widgets"
-  | "kas-api";
+  | "kas-api"
+  | "email-forwards";
 
 const SECTION_KEYS = {
   CONTACT_LIST: "contact-list",
@@ -27,6 +28,7 @@ const SECTION_KEYS = {
   APP_ORDER: "app-order",
   DASHBOARD_WIDGETS: "dashboard-widgets",
   KAS_TEST: "kas-api",
+  EMAIL_FORWARDS: "email-forwards",
 } as const satisfies Record<string, SectionKey>;
 
 /** Icons Nextcloud ships no class for, as Material Design Icons paths:
@@ -40,6 +42,13 @@ const MDI_SORTED_LIST =
 const VALID_SECTION_KEYS = Object.values(SECTION_KEYS) as SectionKey[];
 
 const SECTIONS = [
+  {
+	key: SECTION_KEYS.EMAIL_FORWARDS,
+	label: "Email forwards",
+	description: "View the configured domain's ALL-INKL email forwards.",
+	iconClass: "icon-mail",
+	requiresAdmin: true,
+  },
   {
     key: SECTION_KEYS.CONTACT_LIST,
     label: "Hufak contact list",
@@ -151,7 +160,12 @@ const SECTION_GROUPS = [
     requiresAdmin: true,
   },
   {
-    label: "Nextcloud configuration",
+    label: "Email accounts",
+    items: [SECTION_KEYS.KAS_TEST, SECTION_KEYS.EMAIL_FORWARDS],
+    requiresAdmin: true,
+  },
+  {
+    label: "Nextcloud settings",
     items: [
       SECTION_KEYS.ACCOUNT_INFO_TEMPLATE,
       SECTION_KEYS.APP_ORDER,
@@ -162,11 +176,6 @@ const SECTION_GROUPS = [
   {
     label: "NextSnapMail settings",
     items: [SECTION_KEYS.MAILBOX_NAMES, SECTION_KEYS.SIGNATURE_TEMPLATE],
-    requiresAdmin: true,
-  },
-  {
-    label: "KAS",
-    items: [SECTION_KEYS.KAS_TEST],
     requiresAdmin: true,
   },
 ] as const satisfies readonly {

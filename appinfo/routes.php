@@ -50,6 +50,11 @@ return [
 			'verb' => 'POST',
 		],
 		[
+			'name' => 'api#listKasMailForwards',
+			'url' => '/api/kas/mail-forwards',
+			'verb' => 'POST',
+		],
+		[
 			'name' => 'api#createTemporaryKasMailbox',
 			'url' => '/api/kas/temporary-mailbox',
 			'verb' => 'POST',

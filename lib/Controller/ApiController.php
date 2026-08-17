@@ -787,6 +787,39 @@ class ApiController extends Controller {
 	/**
 	 * @NoAdminRequired
 	 */
+	public function listKasMailForwards(): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse(['message' => 'Admin permissions required'], Http::STATUS_FORBIDDEN);
+		}
+
+		$kasLogin = trim((string)$this->request->getParam('kasLogin', ''));
+		$kasPassword = (string)$this->request->getParam('kasPassword', '');
+		if (($kasLogin === '') !== ($kasPassword === '')) {
+			return new DataResponse([
+				'message' => 'Provide both temporary KAS login and password, or neither',
+			], Http::STATUS_BAD_REQUEST);
+		}
+
+		try {
+			$forwards = $this->kasMailClient->getMailForwards(
+				$this->getStoredEmailDomain(),
+				$kasLogin === '' ? null : $kasLogin,
+				$kasPassword === '' ? null : $kasPassword,
+			);
+		} catch (\Throwable $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], Http::STATUS_BAD_GATEWAY);
+		}
+
+		return new DataResponse([
+			'message' => 'Email forwards loaded',
+			'domain' => $this->getStoredEmailDomain(),
+			'forwards' => $forwards,
+		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
 	public function createTemporaryKasMailbox(): DataResponse {
 		if (!$this->currentUserIsAdmin()) {
 			return new DataResponse(['message' => 'Admin permissions required'], Http::STATUS_FORBIDDEN);

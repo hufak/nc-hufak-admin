@@ -91,6 +91,12 @@ export interface KasMailAccountsResponse {
 	accounts?: unknown
 }
 
+export interface KasMailForwardsResponse {
+	message?: string
+	domain?: string
+	forwards?: unknown
+}
+
 export interface KasTemporaryMailboxResponse {
 	message?: string
 	email?: string

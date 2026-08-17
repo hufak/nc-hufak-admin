@@ -28,8 +28,11 @@ const DashboardWidgetDefaults = defineAsyncComponent(() => import(/* webpackChun
 const StudentStats = defineAsyncComponent(() => import(/* webpackChunkName: "student-stats-section" */ './StudentStats.vue'));
 const StudentList = defineAsyncComponent(() => import(/* webpackChunkName: "student-list" */ './StudentList.vue'));
 const ContactList = defineAsyncComponent(() => import(/* webpackChunkName: "contact-list" */ './ContactList.vue'));
+const QrCode = defineAsyncComponent(() => import(/* webpackChunkName: "qr-code" */ './QrCode.vue'));
 const KasTest = defineAsyncComponent(() => import(/* webpackChunkName: "kas-test" */ './KasTest.vue'));
 const EmailForwards = defineAsyncComponent(() => import(/* webpackChunkName: "email-forwards" */ './EmailForwards.vue'));
+const TelegramBotToken = defineAsyncComponent(() => import(/* webpackChunkName: "telegram-bot-token" */ './TelegramBotToken.vue'));
+const TelegramAngespannte = defineAsyncComponent(() => import(/* webpackChunkName: "telegram-angespannte" */ './TelegramAngespannte.vue'));
 
 const props = defineProps<{
 	adminStatus: 'unknown' | 'admin' | 'non-admin'
@@ -43,11 +46,15 @@ const selectedSection = ref<SectionKey>(parseSectionFromUrl());
 const configureMailUid = ref(getConfigureMailUidFromUrl());
 
 const isAdmin = computed(() => props.adminStatus === 'admin');
+const isSectionVisible = (sectionKey: SectionKey) => {
+	const section = SECTIONS.find(({ key }) => key === sectionKey);
+	return section !== undefined && (!('requiresAdmin' in section) || !section.requiresAdmin || isAdmin.value);
+};
 const visibleGroups = computed(() =>
 	SECTION_GROUPS.filter((group) => !group.requiresAdmin || isAdmin.value),
 );
 const visibleSectionKeys = computed(
-	() => new Set<SectionKey>(visibleGroups.value.flatMap((group) => [...group.items])),
+	() => new Set<SectionKey>(visibleGroups.value.flatMap((group) => group.items.filter(isSectionVisible))),
 );
 const accessibleSectionKeys = computed(() => {
 	const keys = new Set<SectionKey>(visibleSectionKeys.value);
@@ -66,7 +73,7 @@ const currentSection = computed(() =>
 const navigationGroups = computed<NavigationGroup[]>(() =>
 	visibleGroups.value.map((group) => ({
 		label: 'label' in group ? group.label : undefined,
-		entries: group.items.flatMap((sectionKey) => {
+		entries: group.items.filter(isSectionVisible).flatMap((sectionKey) => {
 			const section = SECTIONS.find(({ key }) => key === sectionKey);
 			return section
 				? [{
@@ -145,6 +152,7 @@ const openConfigureMailForUser = (uid: string) => {
 				<StudentList v-else-if="currentSection === SECTION_KEYS.STUDENT_LIST" />
 				<StudentStats v-else-if="currentSection === SECTION_KEYS.STUDENT_STATS" />
 				<ContactList v-else-if="currentSection === SECTION_KEYS.CONTACT_LIST" />
+				<QrCode v-else-if="currentSection === SECTION_KEYS.QR_CODE" />
 				<AddAccount
 					v-else-if="currentSection === SECTION_KEYS.ADD_ACCOUNT"
 					:email-domain="emailDomain" />
@@ -167,6 +175,8 @@ const openConfigureMailForUser = (uid: string) => {
 					v-else-if="currentSection === SECTION_KEYS.DASHBOARD_WIDGETS" />
 				<KasTest v-else-if="currentSection === SECTION_KEYS.KAS_TEST" />
 				<EmailForwards v-else-if="currentSection === SECTION_KEYS.EMAIL_FORWARDS" />
+				<TelegramBotToken v-else-if="currentSection === SECTION_KEYS.TELEGRAM_BOT_TOKEN" />
+				<TelegramAngespannte v-else-if="currentSection === SECTION_KEYS.TELEGRAM_ANGESPANNTE" />
 				<StudentStats v-else />
 			</div>
 		</main>

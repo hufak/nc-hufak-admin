@@ -134,6 +134,40 @@ export interface NewAccountTemplateResponse {
 	message?: string
 }
 
+export interface TelegramBotTokenResponse {
+	message?: string
+	bot?: Record<string, string | number | boolean | null>
+}
+
+export interface TelegramAdministrator {
+	user?: {
+		id?: number
+		username?: string
+		first_name?: string
+		last_name?: string
+	}
+	status?: string
+	adminLabel?: string
+	isAnonymous?: boolean
+	isEditable?: boolean
+	rights?: Record<string, boolean>
+}
+
+export interface TelegramAdministratorsResponse {
+	message?: string
+	chatId?: string
+	canManage?: boolean
+	assignableRights?: string[]
+	administrators?: TelegramAdministrator[]
+}
+
+export interface TelegramMemberPreviewResponse {
+	user?: TelegramAdministrator['user']
+	photo?: string | null
+	isAdministrator?: boolean
+	administrator?: Pick<TelegramAdministrator, 'adminLabel' | 'isAnonymous' | 'isEditable' | 'rights'> | null
+}
+
 export interface ApporderSettingsResponse {
 	apporder?: string
 	message?: string

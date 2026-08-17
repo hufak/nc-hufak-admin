@@ -45,6 +45,46 @@ return [
 			'verb' => 'POST',
 		],
 		[
+			'name' => 'api#setTelegramBotToken',
+			'url' => '/api/telegram/bot-token',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'api#listAngespannteAdministrators',
+			'url' => '/api/telegram/angespannte/administrators',
+			'verb' => 'GET',
+		],
+		[
+			'name' => 'api#setAngespannteAdministratorAnonymity',
+			'url' => '/api/telegram/angespannte/administrators/{userId}/anonymity',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'api#setAngespannteAdministratorLabel',
+			'url' => '/api/telegram/angespannte/administrators/{userId}/label',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'api#setAngespannteAdministratorRights',
+			'url' => '/api/telegram/angespannte/administrators/{userId}/rights',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'api#dismissAngespannteAdministrator',
+			'url' => '/api/telegram/angespannte/administrators/{userId}/dismiss',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'api#previewAngespannteMember',
+			'url' => '/api/telegram/angespannte/members/{identifier}',
+			'verb' => 'GET',
+		],
+		[
+			'name' => 'api#addAngespannteAdministrator',
+			'url' => '/api/telegram/angespannte/administrators',
+			'verb' => 'POST',
+		],
+		[
 			'name' => 'api#listKasMailAccounts',
 			'url' => '/api/kas/mail-accounts',
 			'verb' => 'POST',

@@ -2,6 +2,7 @@ export type SectionKey =
   | "contact-list"
   | "student-list"
   | "student-stats"
+  | "qr-code"
   | "overview"
   | "add-account"
   | "configure-mail"
@@ -12,12 +13,15 @@ export type SectionKey =
   | "app-order"
   | "dashboard-widgets"
   | "kas-api"
-  | "email-forwards";
+  | "email-forwards"
+  | "telegram-bot-token"
+  | "telegram-angespannte";
 
 const SECTION_KEYS = {
   CONTACT_LIST: "contact-list",
   STUDENT_LIST: "student-list",
   STUDENT_STATS: "student-stats",
+  QR_CODE: "qr-code",
   OVERVIEW: "overview",
   ADD_ACCOUNT: "add-account",
   CONFIGURE_MAIL: "configure-mail",
@@ -29,6 +33,8 @@ const SECTION_KEYS = {
   DASHBOARD_WIDGETS: "dashboard-widgets",
   KAS_TEST: "kas-api",
   EMAIL_FORWARDS: "email-forwards",
+  TELEGRAM_BOT_TOKEN: "telegram-bot-token",
+  TELEGRAM_ANGESPANNTE: "telegram-angespannte",
 } as const satisfies Record<string, SectionKey>;
 
 /** Icons Nextcloud ships no class for, as Material Design Icons paths:
@@ -40,14 +46,45 @@ const MDI_SORTED_LIST =
   "M3,5H5V7H3V5M7,5H21V7H7V5M3,11H5V13H3V11M7,11H21V13H7V11M3,17H5V19H3V17M7,17H21V19H7V17Z";
 
 const VALID_SECTION_KEYS = Object.values(SECTION_KEYS) as SectionKey[];
+const QR_QUERY_PARAMETERS = [
+  "qr-url",
+  "qr-label",
+  "qr-label-font",
+  "qr-dots",
+  "qr-corner-square",
+  "qr-corner-dot",
+  "qr-shape",
+  "qr-colour",
+  "qr-background-colour",
+  "qr-logo-foreground-colour",
+  "qr-logo-background-colour",
+  "qr-logo-size",
+  "qr-dots-gradient",
+  "qr-corner-square-gradient",
+  "qr-corner-dot-gradient",
+  "qr-background-gradient",
+] as const;
+const SECTION_QUERY_PARAMETERS: Partial<Record<SectionKey, readonly string[]>> =
+  {
+    [SECTION_KEYS.QR_CODE]: QR_QUERY_PARAMETERS,
+    [SECTION_KEYS.CONFIGURE_MAIL]: ["uid"],
+  };
 
 const SECTIONS = [
   {
-	key: SECTION_KEYS.EMAIL_FORWARDS,
-	label: "Email forwards",
-	description: "View the configured domain's ALL-INKL email forwards.",
-	iconClass: "icon-mail",
-	requiresAdmin: true,
+    key: SECTION_KEYS.QR_CODE,
+    label: "QR code",
+    description:
+      "Create a branded QR code for a URL and download it as SVG or PNG.",
+    iconClass: "icon-link",
+    requiresAdmin: false,
+  },
+  {
+    key: SECTION_KEYS.EMAIL_FORWARDS,
+    label: "Email forwards",
+    description: "View the configured domain's ALL-INKL email forwards.",
+    iconClass: "icon-mail",
+    requiresAdmin: true,
   },
   {
     key: SECTION_KEYS.CONTACT_LIST,
@@ -128,9 +165,25 @@ const SECTIONS = [
   {
     key: SECTION_KEYS.KAS_TEST,
     label: "KAS API test",
-    description: "Test ALL-INKL KAS API credentials and inspect basic account statistics.",
+    description:
+      "Test ALL-INKL KAS API credentials and inspect basic account statistics.",
     iconClass: "icon-category-monitoring",
     requiresAdmin: true,
+  },
+  {
+    key: SECTION_KEYS.TELEGRAM_BOT_TOKEN,
+    label: "Bot API key",
+    description: "Test and store the Telegram Bot API key used by this app.",
+    iconClass: "icon-key",
+    requiresAdmin: true,
+  },
+  {
+    key: SECTION_KEYS.TELEGRAM_ANGESPANNTE,
+    label: "Die Angespannte",
+    description:
+      "List Telegram administrators and their permissions in Die Angespannte.",
+    iconClass: "icon-group",
+    requiresAdmin: false,
   },
 ] as const satisfies readonly {
   key: SectionKey;
@@ -148,15 +201,13 @@ const SECTION_GROUPS = [
       SECTION_KEYS.CONTACT_LIST,
       SECTION_KEYS.STUDENT_STATS,
       SECTION_KEYS.STUDENT_LIST,
+      SECTION_KEYS.QR_CODE,
     ],
     requiresAdmin: false,
   },
   {
     label: "Accounts",
-    items: [
-      SECTION_KEYS.ACCOUNT_OVERVIEW,
-      SECTION_KEYS.ADD_ACCOUNT,
-    ],
+    items: [SECTION_KEYS.ACCOUNT_OVERVIEW, SECTION_KEYS.ADD_ACCOUNT],
     requiresAdmin: true,
   },
   {
@@ -177,6 +228,11 @@ const SECTION_GROUPS = [
     label: "NextSnapMail settings",
     items: [SECTION_KEYS.MAILBOX_NAMES, SECTION_KEYS.SIGNATURE_TEMPLATE],
     requiresAdmin: true,
+  },
+  {
+    label: "Telegram",
+    items: [SECTION_KEYS.TELEGRAM_BOT_TOKEN, SECTION_KEYS.TELEGRAM_ANGESPANNTE],
+    requiresAdmin: false,
   },
 ] as const satisfies readonly {
   label: string;
@@ -200,8 +256,19 @@ function getConfigureMailUidFromUrl(): string {
 
 function buildSectionUrl(section: SectionKey, uid?: string): string {
   const url = new URL(window.location.href);
+  const allowedParameters = new Set([
+    "section",
+    ...(SECTION_QUERY_PARAMETERS[section] || []),
+  ]);
+  [...url.searchParams.keys()].forEach((parameter) => {
+    if (!allowedParameters.has(parameter)) url.searchParams.delete(parameter);
+  });
   url.searchParams.set("section", section);
-  if (typeof uid === "string" && uid !== "") {
+  if (
+    section === SECTION_KEYS.CONFIGURE_MAIL &&
+    typeof uid === "string" &&
+    uid !== ""
+  ) {
     url.searchParams.set("uid", uid);
   } else {
     url.searchParams.delete("uid");
@@ -218,6 +285,7 @@ const DEFAULT_EMAIL_DOMAIN = "hufak.net";
 export {
   SECTION_KEYS,
   VALID_SECTION_KEYS,
+  QR_QUERY_PARAMETERS,
   SECTIONS,
   SECTION_GROUPS,
   buildSectionUrl,

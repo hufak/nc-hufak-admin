@@ -18,6 +18,7 @@ use OCP\IRequest;
 use OCP\IUserManager;
 use OCP\IUserSession;
 use OCA\Hufak\Service\KasMailClient;
+use OCA\Hufak\Service\TelegramBotClient;
 use Symfony\Component\Process\Process;
 
 class ApiController extends Controller {
@@ -26,6 +27,9 @@ class ApiController extends Controller {
 	private const CONFIG_SHARED_MAILBOXES = 'shared_mailboxes';
 	private const CONFIG_DASHBOARD_LAYOUT = 'dashboard_layout';
 	private const CONFIG_NEW_ACCOUNT_TEMPLATE = 'new_account_information_template';
+	private const CONFIG_TELEGRAM_BOT_TOKEN = 'telegram_bot_token';
+	private const TELEGRAM_ANGESPANNTE_CHAT_ID = '-1002497118109';
+	private const TELEGRAM_ADMIN_GROUP = 'Telegram admin';
 	private const SNAPPYMAIL_USER_CONFIG_APP = 'nextsnapmail';
 	private const SNAPPYMAIL_USER_CONFIG_EMAIL = 'nextsnapmail-email';
 	private const SNAPPYMAIL_OCC_COMMAND = 'nextsnapmail:settings';
@@ -60,6 +64,7 @@ class ApiController extends Controller {
 		private IAppData $appData,
 		private IRootFolder $rootFolder,
 		private KasMailClient $kasMailClient,
+		private TelegramBotClient $telegramBotClient,
 	) {
 		parent::__construct($appName, $request);
 	}
@@ -751,6 +756,196 @@ class ApiController extends Controller {
 			'message' => 'Connected to the ALL-INKL KAS API',
 			'statistics' => $statistics,
 		]);
+	}
+
+	/**
+	 * Tests a supplied Telegram token before persisting it as an app setting.
+	 *
+	 * @NoAdminRequired
+	 */
+	public function setTelegramBotToken(): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse(['message' => 'Admin permissions required'], Http::STATUS_FORBIDDEN);
+		}
+		$token = trim((string)$this->request->getParam('token', ''));
+		if ($token === '') {
+			return new DataResponse(['message' => 'Telegram Bot API key is required'], Http::STATUS_BAD_REQUEST);
+		}
+		try {
+			$bot = $this->telegramBotClient->testToken($token);
+			$this->config->setAppValue($this->appName, self::CONFIG_TELEGRAM_BOT_TOKEN, $token);
+		} catch (\Throwable $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], Http::STATUS_BAD_GATEWAY);
+		}
+		return new DataResponse([
+			'message' => 'Telegram Bot API key tested and saved',
+			'bot' => $bot,
+		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function listAngespannteAdministrators(): DataResponse {
+		$canManage = $this->currentUserCanManageTelegram();
+		$token = trim($this->config->getAppValue($this->appName, self::CONFIG_TELEGRAM_BOT_TOKEN, ''));
+		if ($token === '') {
+			return new DataResponse(['message' => 'Configure a Telegram Bot API key first'], Http::STATUS_PRECONDITION_FAILED);
+		}
+		try {
+			$administrators = $this->telegramBotClient->getChatAdministrators($token, self::TELEGRAM_ANGESPANNTE_CHAT_ID);
+			$assignableRights = $canManage
+				? $this->telegramBotClient->getAssignableAdministratorRights($token, self::TELEGRAM_ANGESPANNTE_CHAT_ID)
+				: [];
+		} catch (\Throwable $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], Http::STATUS_BAD_GATEWAY);
+		}
+		return new DataResponse([
+			'message' => 'Telegram administrators loaded',
+			'chatId' => self::TELEGRAM_ANGESPANNTE_CHAT_ID,
+			'administrators' => $canManage ? $administrators : array_map(static function (array $administrator): array {
+				unset($administrator['rights']);
+				return $administrator;
+			}, $administrators),
+			'canManage' => $canManage,
+			'assignableRights' => $assignableRights,
+		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function setAngespannteAdministratorAnonymity(string $userId): DataResponse {
+		if (!$this->currentUserCanManageTelegram()) {
+			return new DataResponse(['message' => 'Telegram admin permissions required'], Http::STATUS_FORBIDDEN);
+		}
+		$isAnonymous = trim((string)$this->request->getParam('isAnonymous', '')) === '1';
+		try {
+			$this->telegramBotClient->setAdministratorAnonymity(
+				trim($this->config->getAppValue($this->appName, self::CONFIG_TELEGRAM_BOT_TOKEN, '')),
+				self::TELEGRAM_ANGESPANNTE_CHAT_ID,
+				$userId,
+				$isAnonymous,
+			);
+		} catch (\Throwable $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], Http::STATUS_BAD_GATEWAY);
+		}
+		return new DataResponse(['message' => 'Telegram administrator anonymity updated']);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function setAngespannteAdministratorLabel(string $userId): DataResponse {
+		if (!$this->currentUserCanManageTelegram()) {
+			return new DataResponse(['message' => 'Telegram admin permissions required'], Http::STATUS_FORBIDDEN);
+		}
+		$label = trim((string)$this->request->getParam('label', ''));
+		try {
+			$this->telegramBotClient->setAdministratorLabel(
+				trim($this->config->getAppValue($this->appName, self::CONFIG_TELEGRAM_BOT_TOKEN, '')),
+				self::TELEGRAM_ANGESPANNTE_CHAT_ID,
+				$userId,
+				$label,
+			);
+		} catch (\Throwable $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], Http::STATUS_BAD_GATEWAY);
+		}
+		return new DataResponse(['message' => 'Telegram administrator label updated']);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function setAngespannteAdministratorRights(string $userId): DataResponse {
+		if (!$this->currentUserCanManageTelegram()) {
+			return new DataResponse(['message' => 'Telegram admin permissions required'], Http::STATUS_FORBIDDEN);
+		}
+		$rights = json_decode((string)$this->request->getParam('rights', '{}'), true);
+		if (!preg_match('/^\d+$/', $userId) || !is_array($rights)) {
+			return new DataResponse(['message' => 'A numeric Telegram user ID and rights are required'], Http::STATUS_BAD_REQUEST);
+		}
+		try {
+			$this->telegramBotClient->setAdministratorRights(
+				trim($this->config->getAppValue($this->appName, self::CONFIG_TELEGRAM_BOT_TOKEN, '')),
+				self::TELEGRAM_ANGESPANNTE_CHAT_ID,
+				$userId,
+				array_map(static fn ($value): bool => $value === true || $value === '1', $rights),
+			);
+		} catch (\Throwable $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], Http::STATUS_BAD_GATEWAY);
+		}
+		return new DataResponse(['message' => 'Telegram administrator rights updated']);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function dismissAngespannteAdministrator(string $userId): DataResponse {
+		if (!$this->currentUserCanManageTelegram()) {
+			return new DataResponse(['message' => 'Telegram admin permissions required'], Http::STATUS_FORBIDDEN);
+		}
+		if (!preg_match('/^\d+$/', $userId)) {
+			return new DataResponse(['message' => 'A numeric Telegram user ID is required'], Http::STATUS_BAD_REQUEST);
+		}
+		try {
+			$this->telegramBotClient->dismissAdministrator(
+				trim($this->config->getAppValue($this->appName, self::CONFIG_TELEGRAM_BOT_TOKEN, '')),
+				self::TELEGRAM_ANGESPANNTE_CHAT_ID,
+				$userId,
+			);
+		} catch (\Throwable $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], Http::STATUS_BAD_GATEWAY);
+		}
+		return new DataResponse(['message' => 'Telegram administrator dismissed']);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function previewAngespannteMember(string $identifier): DataResponse {
+		if (!$this->currentUserCanManageTelegram()) {
+			return new DataResponse(['message' => 'Telegram admin permissions required'], Http::STATUS_FORBIDDEN);
+		}
+		try {
+			$preview = $this->telegramBotClient->previewChatMember(
+				trim($this->config->getAppValue($this->appName, self::CONFIG_TELEGRAM_BOT_TOKEN, '')),
+				self::TELEGRAM_ANGESPANNTE_CHAT_ID,
+				trim($identifier),
+			);
+		} catch (\Throwable $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], Http::STATUS_BAD_GATEWAY);
+		}
+		return new DataResponse($preview);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function addAngespannteAdministrator(): DataResponse {
+		if (!$this->currentUserCanManageTelegram()) {
+			return new DataResponse(['message' => 'Telegram admin permissions required'], Http::STATUS_FORBIDDEN);
+		}
+		$userId = trim((string)$this->request->getParam('userId', ''));
+		$label = trim((string)$this->request->getParam('label', ''));
+		$isAnonymous = trim((string)$this->request->getParam('isAnonymous', '')) === '1';
+		$rights = json_decode((string)$this->request->getParam('rights', '{}'), true);
+		if (!preg_match('/^\d+$/', $userId) || !is_array($rights)) {
+			return new DataResponse(['message' => 'A numeric Telegram user ID and rights are required'], Http::STATUS_BAD_REQUEST);
+		}
+		try {
+			$this->telegramBotClient->addAdministrator(
+				trim($this->config->getAppValue($this->appName, self::CONFIG_TELEGRAM_BOT_TOKEN, '')),
+				self::TELEGRAM_ANGESPANNTE_CHAT_ID,
+				$userId,
+				array_map(static fn ($value): bool => $value === true || $value === '1', $rights),
+				$label,
+				$isAnonymous,
+			);
+		} catch (\Throwable $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], Http::STATUS_BAD_GATEWAY);
+		}
+		return new DataResponse(['message' => 'Telegram administrator added']);
 	}
 
 	/**
@@ -1707,6 +1902,18 @@ class ApiController extends Controller {
 	private function currentUserIsAdmin(): bool {
 		$user = $this->userSession->getUser();
 		return $user !== null && $this->groupManager->isAdmin($user->getUID());
+	}
+
+	private function currentUserCanManageTelegram(): bool {
+		$user = $this->userSession->getUser();
+		if ($user === null) {
+			return false;
+		}
+		if ($this->groupManager->isAdmin($user->getUID())) {
+			return true;
+		}
+		$group = $this->groupManager->get(self::TELEGRAM_ADMIN_GROUP);
+		return $group !== null && $group->inGroup($user);
 	}
 
 	private function getStoredEmailDomain(): string {

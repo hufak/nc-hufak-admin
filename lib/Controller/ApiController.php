@@ -816,9 +816,6 @@ class ApiController extends Controller {
 	 * @NoAdminRequired
 	 */
 	public function setAngespannteAdministratorAnonymity(string $userId): DataResponse {
-		if (!$this->currentUserCanManageTelegram()) {
-			return new DataResponse(['message' => 'Telegram admin permissions required'], Http::STATUS_FORBIDDEN);
-		}
 		$isAnonymous = trim((string)$this->request->getParam('isAnonymous', '')) === '1';
 		try {
 			$this->telegramBotClient->setAdministratorAnonymity(
@@ -837,9 +834,6 @@ class ApiController extends Controller {
 	 * @NoAdminRequired
 	 */
 	public function setAngespannteAdministratorLabel(string $userId): DataResponse {
-		if (!$this->currentUserCanManageTelegram()) {
-			return new DataResponse(['message' => 'Telegram admin permissions required'], Http::STATUS_FORBIDDEN);
-		}
 		$label = trim((string)$this->request->getParam('label', ''));
 		try {
 			$this->telegramBotClient->setAdministratorLabel(
@@ -1009,6 +1003,36 @@ class ApiController extends Controller {
 			'message' => 'Email forwards loaded',
 			'domain' => $this->getStoredEmailDomain(),
 			'forwards' => $forwards,
+		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function updateKasMailForward(string $mailbox): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse(['message' => 'Admin permissions required'], Http::STATUS_FORBIDDEN);
+		}
+
+		$mailbox = trim($mailbox);
+		$mailForwardTargets = $this->request->getParam('mailForwardTargets', null);
+		if ($mailForwardTargets === null) {
+			$mailForwardTargets = $this->request->getParam('mail_forward_targets', '');
+		}
+		if ($mailbox === '') {
+			return new DataResponse(['message' => 'A mailbox is required'], Http::STATUS_BAD_REQUEST);
+		}
+
+		try {
+			$this->kasMailClient->updateMailForwardTargets($mailbox, (string)$mailForwardTargets);
+		} catch (\Throwable $exception) {
+			return new DataResponse(['message' => $exception->getMessage()], Http::STATUS_BAD_GATEWAY);
+		}
+
+		return new DataResponse([
+			'message' => 'Email forward updated',
+			'mailbox' => $mailbox,
+			'mailForwardTargets' => (string)$mailForwardTargets,
 		]);
 	}
 

@@ -96,12 +96,44 @@ class KasMailClient {
 			[$login, $token] = $this->openSession($providedLogin, $providedPassword);
 			$forwards = $this->request($login, $token, 'get_mailforwards', [], true);
 			return $this->formatForPresentation(
-				$this->withoutRedundantMailForwardAddress(
+				$this->formatMailForwardTargetsForPresentation($this->withoutRedundantMailForwardAddress(
 					$this->filterMailForwardsForDomain($forwards, $domain),
-				),
+				)),
 			);
 		} catch (\JsonException $exception) {
 			throw new \RuntimeException('Failed to prepare ALL-INKL KAS request', 0, $exception);
+		}
+	}
+
+	/**
+	 * Replaces the target list of an existing mail forward.
+	 *
+	 * The KAS API stores target addresses as a comma-separated string. The admin
+	 * UI deliberately uses one address per line, so convert it only at this API
+	 * boundary.
+	 */
+	public function updateMailForwardTargets(
+		string $mailbox,
+		string $mailForwardTargets,
+		?string $providedLogin = null,
+		?string $providedPassword = null,
+	): void {
+		try {
+			[$login, $token] = $this->openSession($providedLogin, $providedPassword);
+			$result = $this->request($login, $token, 'update_mailforward', [
+				'mail_forward' => $mailbox,
+				'mail_forward_targets' => $this->mailForwardTargetsForKas($mailForwardTargets),
+			]);
+			$resultMessage = trim((string)$result);
+			if (!in_array(strtolower($resultMessage), ['1', 'true'], true)) {
+				throw new \RuntimeException(
+					$resultMessage === ''
+						? 'ALL-INKL did not confirm the mail-forward update'
+						: 'ALL-INKL mail-forward update was rejected: ' . $resultMessage,
+				);
+			}
+		} catch (\JsonException $exception) {
+			throw new \RuntimeException('Failed to prepare ALL-INKL mail-forward request', 0, $exception);
 		}
 	}
 	public function mailboxCredentials(string $email): array {
@@ -296,6 +328,28 @@ class KasMailClient {
 			$cleaned[$key] = $this->withoutRedundantMailForwardAddress($child);
 		}
 		return $cleaned;
+	}
+
+	/** Converts KAS's comma-separated forward targets to one target per line. */
+	private function formatMailForwardTargetsForPresentation(mixed $value): mixed {
+		if (!is_array($value)) {
+			return $value;
+		}
+
+		foreach ($value as $key => $child) {
+			if (strtolower((string)$key) === 'mail_forward_targets' && is_string($child)) {
+				$value[$key] = implode("\n", array_map('trim', explode(',', $child)));
+				continue;
+			}
+			$value[$key] = $this->formatMailForwardTargetsForPresentation($child);
+		}
+		return $value;
+	}
+
+	/** Converts one-target-per-line admin input to the KAS representation. */
+	private function mailForwardTargetsForKas(string $targets): string {
+		$lines = preg_split('/\R/', $targets) ?: [];
+		return implode(',', array_values(array_filter(array_map('trim', $lines), static fn (string $line): bool => $line !== '')));
 	}
 
 	/** @return array{string, string} */

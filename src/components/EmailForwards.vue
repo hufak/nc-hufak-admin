@@ -1,5 +1,8 @@
 <script setup lang="ts">
 import { computed, ref, type CSSProperties } from 'vue';
+import NcButton from '@nextcloud/vue/components/NcButton';
+import NcDialog from '@nextcloud/vue/components/NcDialog';
+import { showError, showSuccess } from '@nextcloud/dialogs';
 import { apiRequest } from '../api';
 import { styles } from '../styles';
 import type { KasMailForwardsResponse } from '../types';
@@ -12,6 +15,9 @@ const result = ref<KasMailForwardsResponse | null>(null);
 const credentialsModalOpen = ref(false);
 const temporaryKasLogin = ref('');
 const temporaryKasPassword = ref('');
+const editingForward = ref<{ mailbox: string; row: ForwardRow } | null>(null);
+const editedForwardTargets = ref('');
+const savingForward = ref(false);
 
 type ForwardRow = Record<string, unknown>;
 interface CompactForwardTable {
@@ -56,11 +62,16 @@ const forwardsTableStyle: CSSProperties = { ...styles.table, width: '100%', tabl
 const forwardsCellStyle: CSSProperties = {
 	...styles.tableCell,
 	maxWidth: '40ch',
-	whiteSpace: 'normal',
+	whiteSpace: 'pre-line',
 	overflowWrap: 'break-word',
 	wordBreak: 'normal',
 };
 const forwardsHeaderStyle: CSSProperties = { ...styles.tableHeader, ...forwardsCellStyle };
+const forwardTargetsListStyle: CSSProperties = {
+	margin: 0,
+	paddingLeft: '1.5em',
+	cursor: 'pointer',
+};
 
 const requestBody = (useTemporaryCredentials = false) => {
 	const body = new URLSearchParams();
@@ -108,6 +119,52 @@ const closeCredentialsModal = () => {
 	temporaryKasPassword.value = '';
 };
 
+const forwardAddress = (row: ForwardRow): string => String(row.mail_forward ?? row.mail_forward_address ?? '');
+const forwardTargetLines = (value: unknown): string[] => typeof value === 'string'
+	? value.split(/\r?\n/).map((target) => target.trim()).filter((target) => target !== '')
+	: [];
+
+const openForwardEditor = (row: ForwardRow, targets: unknown) => {
+	const mailbox = forwardAddress(row);
+	if (mailbox === '') {
+		showError('This email forward does not include a forward address.');
+		return;
+	}
+	editedForwardTargets.value = typeof targets === 'string' ? targets : '';
+	editingForward.value = { mailbox, row };
+};
+
+const closeForwardEditor = () => {
+	if (savingForward.value) return;
+	editingForward.value = null;
+	editedForwardTargets.value = '';
+};
+
+const saveForward = async () => {
+	const forward = editingForward.value;
+	if (forward === null || savingForward.value) return;
+
+	savingForward.value = true;
+	try {
+		const response = await apiRequest<{ message?: string }>(
+			OC.generateUrl(`/apps/hufak/api/kas/mail-forwards/${encodeURIComponent(forward.mailbox)}`),
+			{
+				method: 'POST',
+				headers: { 'content-type': 'application/x-www-form-urlencoded;charset=UTF-8' },
+				body: new URLSearchParams({ mailForwardTargets: editedForwardTargets.value }),
+			},
+		);
+		forward.row.mail_forward_targets = editedForwardTargets.value;
+		editingForward.value = null;
+		editedForwardTargets.value = '';
+		showSuccess(response.message || 'Email forward updated');
+	} catch (err) {
+		showError(err instanceof Error ? err.message : 'Failed to update email forward');
+	} finally {
+		savingForward.value = false;
+	}
+};
+
 void loadForwards();
 </script>
 
@@ -136,7 +193,23 @@ void loadForwards();
 				:wrapper-style="forwardsTableWrapperStyle"
 				:table-style="forwardsTableStyle"
 				:header-style="forwardsHeaderStyle"
-				:cell-style="forwardsCellStyle" />
+				:cell-style="forwardsCellStyle">
+				<template #cell="{ row, columnId, value }">
+					<ol
+						v-if="columnId === 'mail_forward_targets'"
+						:style="forwardTargetsListStyle"
+						role="button"
+						tabindex="0"
+						:title="`Edit targets for ${forwardAddress(row)}`"
+						:aria-label="`Edit targets for ${forwardAddress(row)}`"
+						@click="openForwardEditor(row, value)"
+						@keydown.enter.prevent="openForwardEditor(row, value)"
+						@keydown.space.prevent="openForwardEditor(row, value)">
+						<li v-for="target in forwardTargetLines(value)" :key="target">{{ target }}</li>
+					</ol>
+					<template v-else>{{ value ?? '' }}</template>
+				</template>
+			</SortableTable>
 			<p v-else :style="styles.hintText">No email forwards found for this domain.</p>
 		</div>
 
@@ -156,5 +229,23 @@ void loadForwards();
 				</div>
 			</form>
 		</AccountCredentialsModal>
+
+		<NcDialog
+			v-if="editingForward"
+			:open="true"
+			:name="editingForward.mailbox"
+			@update:open="closeForwardEditor">
+			<label :style="styles.fieldLabel" for="hufak-forward-targets">Forward targets (one address per line)</label>
+			<textarea
+				id="hufak-forward-targets"
+				v-model="editedForwardTargets"
+				:style="styles.modalTextarea"
+				:disabled="savingForward"
+				autocomplete="off" />
+			<template #actions>
+				<NcButton type="button" :disabled="savingForward" @click="closeForwardEditor">Cancel</NcButton>
+				<NcButton type="button" variant="primary" :loading="savingForward" @click="saveForward">Save</NcButton>
+			</template>
+		</NcDialog>
 	</section>
 </template>

@@ -95,6 +95,11 @@ return [
 			'verb' => 'POST',
 		],
 		[
+			'name' => 'api#updateKasMailForward',
+			'url' => '/api/kas/mail-forwards/{mailbox}',
+			'verb' => 'POST',
+		],
+		[
 			'name' => 'api#createTemporaryKasMailbox',
 			'url' => '/api/kas/temporary-mailbox',
 			'verb' => 'POST',

@@ -199,7 +199,7 @@ const updateAdministratorRight = async (administrator: TelegramAdministrator, ri
 };
 
 const openLabelDialog = (administrator: TelegramAdministrator) => {
-	if (!canManage.value || administrator.isEditable === false || isSavingAdministrator.value) return;
+	if (administrator.isEditable === false || isSavingAdministrator.value) return;
 	labelAdministrator.value = administrator;
 	newAdminLabel.value = administrator.adminLabel || '';
 	labelProfile.value = null;
@@ -398,11 +398,11 @@ onMounted(() => { void loadAdministrators(); });
 			:cell-style="cellStyle">
 			<template #cell="{ row, columnId, value }">
 				<NcButton v-if="columnId === 'name'" type="button" variant="tertiary-no-background" :title="`Copy Telegram user ID ${administratorId(row)}`" @click="copyAdministratorId(row)">{{ value }}</NcButton>
-				<NcButton v-else-if="columnId === 'adminLabel' && canManage" type="button" variant="tertiary-no-background" :disabled="!row.isEditable || isSavingAdministrator" :loading="isUpdating(row)" :title="row.isEditable ? undefined : 'Telegram does not allow this bot to edit that administrator'" @click="openLabelDialog(row)"><span :style="value ? undefined : unsetLabelStyle">{{ value || 'Set label' }}</span></NcButton>
-				<span v-else-if="columnId === 'isAnonymous'" :style="checkboxCellStyle"><NcCheckboxRadioSwitch :model-value="Boolean(value)" :disabled="!canManage || !row.isEditable || isSavingAdministrator" :title="row.isEditable ? undefined : 'Telegram does not allow this bot to edit that administrator'" :aria-label="`Set ${administratorName(row)} to post anonymously`" @update:model-value="updateAnonymity(row, Boolean($event))" /></span>
+				<NcButton v-else-if="columnId === 'adminLabel'" type="button" variant="tertiary-no-background" :disabled="!row.isEditable || isSavingAdministrator" :loading="isUpdating(row)" :title="row.isEditable ? undefined : 'Telegram does not allow this bot to edit that administrator'" @click="openLabelDialog(row)"><span :style="value ? undefined : unsetLabelStyle">{{ value || 'Set label' }}</span></NcButton>
+				<span v-else-if="columnId === 'isAnonymous'" :style="checkboxCellStyle"><NcCheckboxRadioSwitch :model-value="Boolean(value)" :disabled="!row.isEditable || isSavingAdministrator" :title="row.isEditable ? undefined : 'Telegram does not allow this bot to edit that administrator'" :aria-label="`Set ${administratorName(row)} to post anonymously`" @update:model-value="updateAnonymity(row, Boolean($event))" /></span>
 				<span v-else-if="columnId === 'status'" :style="statusActionStyle">
 					{{ value }}
-					<NcButton v-if="canDismissAdministrator(row)" type="button" variant="secondary" :disabled="isSavingAdministrator" :loading="isUpdating(row)" title="Dismiss administrator" :aria-label="`Dismiss ${administratorName(row)} as administrator`" @click="openDismissDialog(row)"><template #icon><span class="icon icon-close" aria-hidden="true" /></template></NcButton>
+					<NcButton v-if="canDismissAdministrator(row)" type="button" size="small" variant="secondary" :disabled="isSavingAdministrator" :loading="isUpdating(row)" title="Dismiss administrator" :aria-label="`Dismiss ${administratorName(row)} as administrator`" @click="openDismissDialog(row)"><template #icon><span class="icon icon-close" aria-hidden="true" /></template></NcButton>
 				</span>
 				<span v-else-if="columnId.startsWith('right:')" :style="checkboxCellStyle"><NcCheckboxRadioSwitch :model-value="Boolean(value)" :disabled="!canManage || !row.isEditable || !isAssignableRight(columnId.slice(6)) || isSavingAdministrator" :title="!row.isEditable ? 'Telegram does not allow this bot to edit that administrator' : !isAssignableRight(columnId.slice(6)) ? 'The bot cannot assign this right' : undefined" :aria-label="administratorRightLabel(columnId.slice(6))" @update:model-value="updateAdministratorRight(row, columnId.slice(6), Boolean($event))" /></span>
 				<template v-else>{{ value ?? '' }}</template>

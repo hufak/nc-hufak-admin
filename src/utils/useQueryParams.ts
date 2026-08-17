@@ -31,6 +31,14 @@ export const useQueryParams = () => {
 		set: (value: number) => update(key, String(value), String(defaultValue)),
 	});
 
+	const boolean = (key: string, defaultValue: boolean): WritableComputedRef<boolean> => computed({
+		get: () => {
+			const value = parameters.value.get(key);
+			return value === 'true' ? true : value === 'false' ? false : defaultValue;
+		},
+		set: (value: boolean) => update(key, String(value), String(defaultValue)),
+	});
+
 	const enumValue = <T extends string>(key: string, defaultValue: T, values: readonly T[]): WritableComputedRef<T> => computed({
 		get: () => {
 			const value = parameters.value.get(key);
@@ -43,5 +51,5 @@ export const useQueryParams = () => {
 		keys.some((key) => parameters.value.has(key)),
 	);
 
-	return { string, number, enum: enumValue, hasAny };
+	return { string, number, boolean, enum: enumValue, hasAny };
 };

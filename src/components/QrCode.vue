@@ -8,12 +8,12 @@ import QRCodeStyling, {
 } from 'qr-code-styling';
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch, type CSSProperties, type WritableComputedRef } from 'vue';
 import NcButton from '@nextcloud/vue/components/NcButton';
+import NcCheckboxRadioSwitch from '@nextcloud/vue/components/NcCheckboxRadioSwitch';
 import NcColorPicker from '@nextcloud/vue/components/NcColorPicker';
 import NcPopover from '@nextcloud/vue/components/NcPopover';
 import NcSelect from '@nextcloud/vue/components/NcSelect';
 import NcTextField from '@nextcloud/vue/components/NcTextField';
 import { styles } from '../styles';
-import { QR_QUERY_PARAMETERS } from '../constants';
 import { useQueryParams } from '../utils/useQueryParams';
 
 const QR_SIZE = 320;
@@ -25,14 +25,11 @@ const DEFAULT_DOTS_STYLE: DotType = 'rounded';
 const DEFAULT_CORNER_SQUARE_STYLE: CornerSquareType = 'extra-rounded';
 const DEFAULT_CORNER_DOT_STYLE: CornerDotType = 'square';
 const DEFAULT_SHAPE: ShapeType = 'square';
-const DEFAULT_FOREGROUND_COLOR = '#1d2d44';
+const DEFAULT_FOREGROUND_COLOR = '#000000';
 const DEFAULT_BACKGROUND_COLOR = '#ffffff';
 const DEFAULT_LOGO_FOREGROUND_COLOR = '#000000';
 const DEFAULT_LOGO_BACKGROUND_COLOR = '#ffffff';
 const DEFAULT_LOGO_SIZE = 0.25;
-const ADVANCED_QUERY_PARAMETERS = QR_QUERY_PARAMETERS.filter((parameter) =>
-	parameter !== 'qr-url' && parameter !== 'qr-label',
-);
 
 const dotStyleOptions: { value: DotType, label: string }[] = [
 	{ value: 'square', label: 'Square' },
@@ -71,6 +68,7 @@ const backgroundColor = query.string('qr-background-colour', DEFAULT_BACKGROUND_
 const logoForegroundColor = query.string('qr-logo-foreground-colour', DEFAULT_LOGO_FOREGROUND_COLOR);
 const logoBackgroundColor = query.string('qr-logo-background-colour', DEFAULT_LOGO_BACKGROUND_COLOR);
 const logoSize = query.number('qr-logo-size', DEFAULT_LOGO_SIZE, (value) => value >= 0.1 && value <= 0.5);
+const includeLogo = query.boolean('qr-logo', true);
 const dotsGradientSpecification = query.string('qr-dots-gradient', '');
 const cornerSquareGradientSpecification = query.string('qr-corner-square-gradient', '');
 const cornerDotGradientSpecification = query.string('qr-corner-dot-gradient', '');
@@ -82,7 +80,12 @@ const gradientSpecifications: Record<GradientTarget, WritableComputedRef<string>
 	cornerDot: cornerDotGradientSpecification,
 	background: backgroundGradientSpecification,
 };
-const showCustomization = ref(query.hasAny(ADVANCED_QUERY_PARAMETERS).value);
+const QR_STYLE_PARAMETERS = ['qr-label-font', 'qr-dots', 'qr-corner-square', 'qr-corner-dot', 'qr-shape'];
+const LOGO_PARAMETERS = ['qr-logo', 'qr-logo-foreground-colour', 'qr-logo-background-colour', 'qr-logo-size'];
+const COLOUR_PARAMETERS = ['qr-colour', 'qr-background-colour', 'qr-dots-gradient', 'qr-corner-square-gradient', 'qr-corner-dot-gradient', 'qr-background-gradient'];
+const showQrStyle = ref(query.hasAny(QR_STYLE_PARAMETERS).value);
+const showLogo = ref(query.hasAny(LOGO_PARAMETERS).value);
+const showColour = ref(query.hasAny(COLOUR_PARAMETERS).value);
 const logoSvg = ref('');
 const previewSvgDataUrl = ref('');
 let qrCode: QRCodeStyling | null = null;
@@ -121,7 +124,7 @@ const cornerSquareGradient = computed(() => parseGradientSpecification(cornerSqu
 const cornerDotGradient = computed(() => parseGradientSpecification(cornerDotGradientSpecification.value));
 const backgroundGradient = computed(() => parseGradientSpecification(backgroundGradientSpecification.value));
 const hasBackgroundGradient = computed(() => backgroundGradientSpecification.value.trim() !== '');
-const logoDataUrl = computed(() => logoSvg.value === ''
+const logoDataUrl = computed(() => !includeLogo.value || logoSvg.value === ''
 	? ''
 	: `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(logoSvg.value.replace(/fill="#fff"/gi, `fill="${logoForegroundColor.value}"`))))}`);
 const hasUrl = computed(() => url.value.trim() !== '');
@@ -158,17 +161,6 @@ const colourControlsStyle: CSSProperties = {
 	gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))',
 	gap: '10px',
 };
-const controlGroupStyle: CSSProperties = {
-	display: 'grid',
-	gap: '10px',
-	margin: 0,
-	padding: '10px 12px 12px',
-	border: '1px solid var(--color-border)',
-	borderRadius: '8px',
-	minInlineSize: 0,
-};
-const controlGroupLegendStyle: CSSProperties = { padding: '0 4px', fontWeight: 600, fontSize: '14px' };
-const labelWithInfoStyle: CSSProperties = { display: 'flex', alignItems: 'center', gap: '2px' };
 const tooltipContentStyle: CSSProperties = { margin: 0, maxWidth: '28ch' };
 const sliderStyle: CSSProperties = { width: '100%', accentColor: 'var(--color-primary-element)' };
 const gradientInputStyle: CSSProperties = {
@@ -296,8 +288,11 @@ const downloadPng = async () => {
 	image.src = objectUrl;
 };
 
-const updateCustomizationDisclosure = (event: Event) => {
-	showCustomization.value = (event.currentTarget as HTMLDetailsElement).open;
+const updateDisclosure = (section: 'qrStyle' | 'logo' | 'colour') => (event: Event) => {
+	const open = (event.currentTarget as HTMLDetailsElement).open;
+	if (section === 'qrStyle') showQrStyle.value = open;
+	else if (section === 'logo') showLogo.value = open;
+	else showColour.value = open;
 };
 
 onMounted(async () => {
@@ -316,10 +311,10 @@ onMounted(async () => {
 });
 
 onBeforeUnmount(() => { qrCode = null; });
-watch([url, label, labelFont, selectedDotsStyle, selectedCornerSquareStyle, selectedCornerDotStyle, selectedShape, foregroundColor, backgroundColor, logoBackgroundColor, dotsGradientSpecification, cornerSquareGradientSpecification, cornerDotGradientSpecification, backgroundGradientSpecification, logoDataUrl, logoSize], () => { void updateQrCode(); });
-watch(query.hasAny(ADVANCED_QUERY_PARAMETERS), (hasAdvancedSettings) => {
-	if (hasAdvancedSettings) showCustomization.value = true;
-});
+watch([url, label, labelFont, selectedDotsStyle, selectedCornerSquareStyle, selectedCornerDotStyle, selectedShape, foregroundColor, backgroundColor, logoBackgroundColor, dotsGradientSpecification, cornerSquareGradientSpecification, cornerDotGradientSpecification, backgroundGradientSpecification, logoDataUrl, logoSize, includeLogo], () => { void updateQrCode(); });
+watch(query.hasAny(QR_STYLE_PARAMETERS), (hasSettings) => { if (hasSettings) showQrStyle.value = true; });
+watch(query.hasAny(LOGO_PARAMETERS), (hasSettings) => { if (hasSettings) showLogo.value = true; });
+watch(query.hasAny(COLOUR_PARAMETERS), (hasSettings) => { if (hasSettings) showColour.value = true; });
 </script>
 
 <template>
@@ -332,27 +327,31 @@ watch(query.hasAny(ADVANCED_QUERY_PARAMETERS), (hasAdvancedSettings) => {
 			<div :style="styles.form">
 				<NcTextField v-model="url" label="URL" type="url" placeholder="https://example.org" autocomplete="url" />
 				<NcTextField v-model="label" label="Label" type="text" placeholder="Optional label below the QR code" />
-				<details :open="showCustomization" :style="styles.collapsibleSection" @toggle="updateCustomizationDisclosure">
-					<summary :style="styles.collapsibleSummary">Customize</summary>
+				<details :open="showQrStyle" :style="styles.collapsibleSection" @toggle="updateDisclosure('qrStyle')">
+					<summary :style="styles.collapsibleSummary">QR style</summary>
 					<div :style="styles.collapsibleContent">
 					<NcTextField v-model="labelFont" label="Label font" type="text" placeholder="serif 16pt" />
 					<NcSelect v-model="selectedDotsStyle" :options="dotStyleOptions" :reduce="optionValue" label="label" input-label="QR modules" :searchable="false" :clearable="false" />
 					<NcSelect v-model="selectedCornerSquareStyle" :options="cornerSquareStyleOptions" :reduce="optionValue" label="label" input-label="Finder squares" :searchable="false" :clearable="false" />
 					<NcSelect v-model="selectedCornerDotStyle" :options="cornerDotStyleOptions" :reduce="optionValue" label="label" input-label="Finder dots" :searchable="false" :clearable="false" />
 					<NcSelect v-model="selectedShape" :options="shapeOptions" :reduce="optionValue" label="label" input-label="QR outline" :searchable="false" :clearable="false" />
-					<fieldset :style="controlGroupStyle">
-						<legend :style="controlGroupLegendStyle">Logo</legend>
+					</div>
+				</details>
+				<details :open="showLogo" :style="styles.collapsibleSection" @toggle="updateDisclosure('logo')">
+					<summary :style="styles.collapsibleSummary">Logo</summary>
+					<div :style="styles.collapsibleContent">
+						<NcCheckboxRadioSwitch v-model="includeLogo">Include logo</NcCheckboxRadioSwitch>
 						<div>
-						<label for="hufak-qr-logo-size" :style="styles.fieldLabel">Logo size: {{ Math.round(logoSize * 100) }}%</label>
-						<input id="hufak-qr-logo-size" v-model.number="logoSize" type="range" min="0.1" max="0.5" step="0.01" :style="sliderStyle">
-						<p :style="styles.hintText">Larger logos can reduce scan reliability; qr-code-styling recommends no more than 50%.</p>
+							<label for="hufak-qr-logo-size" :style="styles.fieldLabel">Logo size: {{ Math.round(logoSize * 100) }}%</label>
+							<input id="hufak-qr-logo-size" v-model.number="logoSize" type="range" min="0.1" max="0.5" step="0.01" :disabled="!includeLogo" :style="sliderStyle">
+							<p :style="styles.hintText">Larger logos can reduce scan reliability; qr-code-styling recommends no more than 50%.</p>
 						</div>
 						<div :style="colourControlsStyle">
 							<div>
 								<label :style="styles.fieldLabel">Logo foreground colour</label>
 								<NcColorPicker :model-value="logoForegroundColor" :advanced-fields="true" @update:model-value="setLogoColor">
 									<template #default="{ attrs }">
-										<NcButton v-bind="attrs" type="button" variant="secondary">
+										<NcButton v-bind="attrs" type="button" variant="secondary" :disabled="!includeLogo">
 											<template #icon><span :style="{ ...colourPickerTriggerStyle, background: logoForegroundColor }" /></template>
 											Pick
 										</NcButton>
@@ -363,7 +362,7 @@ watch(query.hasAny(ADVANCED_QUERY_PARAMETERS), (hasAdvancedSettings) => {
 								<label :style="styles.fieldLabel">Logo background colour</label>
 								<NcColorPicker :model-value="logoBackgroundColor" :advanced-fields="true" @update:model-value="setLogoBackgroundColor">
 									<template #default="{ attrs }">
-										<NcButton v-bind="attrs" type="button" variant="secondary">
+										<NcButton v-bind="attrs" type="button" variant="secondary" :disabled="!includeLogo">
 											<template #icon><span :style="{ ...colourPickerTriggerStyle, background: logoBackgroundColor }" /></template>
 											Pick
 										</NcButton>
@@ -371,10 +370,12 @@ watch(query.hasAny(ADVANCED_QUERY_PARAMETERS), (hasAdvancedSettings) => {
 								</NcColorPicker>
 							</div>
 						</div>
-					</fieldset>
-					<fieldset :style="controlGroupStyle">
-						<legend :style="controlGroupLegendStyle">Colour</legend>
-					<div :style="colourControlsStyle">
+					</div>
+				</details>
+				<details :open="showColour" :style="styles.collapsibleSection" @toggle="updateDisclosure('colour')">
+					<summary :style="styles.collapsibleSummary">Colour</summary>
+					<div :style="styles.collapsibleContent">
+						<div :style="colourControlsStyle">
 						<div>
 							<label :style="styles.fieldLabel">QR colour</label>
 							<NcColorPicker :model-value="foregroundColor" :advanced-fields="true" @update:model-value="setForegroundColor">
@@ -387,20 +388,25 @@ watch(query.hasAny(ADVANCED_QUERY_PARAMETERS), (hasAdvancedSettings) => {
 							</NcColorPicker>
 						</div>
 						<div>
-							<div :style="labelWithInfoStyle">
-								<label :style="styles.fieldLabel">Background colour</label>
-								<NcPopover :triggers="['hover', 'focus']" placement="end" no-focus-trap>
-									<template #trigger>
-										<NcButton aria-label="About background colour" variant="tertiary-no-background">
-											<template #icon><span class="icon icon-info" /></template>
-										</NcButton>
-									</template>
-									<p :style="tooltipContentStyle">Background colour is unavailable while a background gradient is set, because the gradient supplies the background instead.</p>
-								</NcPopover>
-							</div>
-							<NcColorPicker :model-value="backgroundColor" :advanced-fields="true" @update:model-value="setBackgroundColor">
+							<label :style="styles.fieldLabel">Background colour</label>
+							<NcPopover v-if="hasBackgroundGradient" :triggers="['hover', 'focus']" placement="end" no-focus-trap>
+								<template #trigger>
+									<span tabindex="0" aria-label="Background colour is unavailable while a background gradient is set">
+										<NcColorPicker :model-value="backgroundColor" :advanced-fields="true" @update:model-value="setBackgroundColor">
+											<template #default="{ attrs }">
+												<NcButton v-bind="attrs" type="button" variant="secondary" disabled>
+													<template #icon><span :style="{ ...colourPickerTriggerStyle, background: backgroundColor }" /></template>
+													Pick
+												</NcButton>
+											</template>
+										</NcColorPicker>
+									</span>
+								</template>
+								<p :style="tooltipContentStyle">Background colour is unavailable while a background gradient is set, because the gradient supplies the background instead.</p>
+							</NcPopover>
+							<NcColorPicker v-else :model-value="backgroundColor" :advanced-fields="true" @update:model-value="setBackgroundColor">
 								<template #default="{ attrs }">
-									<NcButton v-bind="attrs" type="button" variant="secondary" :disabled="hasBackgroundGradient">
+									<NcButton v-bind="attrs" type="button" variant="secondary">
 										<template #icon><span :style="{ ...colourPickerTriggerStyle, background: backgroundColor }" /></template>
 										Pick
 									</NcButton>
@@ -425,7 +431,6 @@ watch(query.hasAny(ADVANCED_QUERY_PARAMETERS), (hasAdvancedSettings) => {
 						<NcButton type="button" variant="secondary" aria-label="Create random background gradient" @click="randomGradient('background')"><template #icon><span aria-hidden="true">🎲</span></template></NcButton>
 					</div>
 					<p :style="styles.hintText"><a href="https://github.com/kozakdenys/qr-code-styling#gradient-structure" target="_blank" rel="noreferrer">Gradient structure documentation</a></p>
-					</fieldset>
 					</div>
 				</details>
 			</div>

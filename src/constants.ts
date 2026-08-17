@@ -59,6 +59,7 @@ const QR_QUERY_PARAMETERS = [
   "qr-logo-foreground-colour",
   "qr-logo-background-colour",
   "qr-logo-size",
+  "qr-logo",
   "qr-dots-gradient",
   "qr-corner-square-gradient",
   "qr-corner-dot-gradient",
@@ -212,7 +213,7 @@ const SECTION_GROUPS = [
   },
   {
     label: "Email accounts",
-    items: [SECTION_KEYS.KAS_TEST, SECTION_KEYS.EMAIL_FORWARDS],
+    items: [SECTION_KEYS.EMAIL_FORWARDS, SECTION_KEYS.KAS_TEST],
     requiresAdmin: true,
   },
   {
@@ -231,7 +232,7 @@ const SECTION_GROUPS = [
   },
   {
     label: "Telegram",
-    items: [SECTION_KEYS.TELEGRAM_BOT_TOKEN, SECTION_KEYS.TELEGRAM_ANGESPANNTE],
+    items: [SECTION_KEYS.TELEGRAM_ANGESPANNTE, SECTION_KEYS.TELEGRAM_BOT_TOKEN],
     requiresAdmin: false,
   },
 ] as const satisfies readonly {

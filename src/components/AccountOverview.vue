@@ -9,6 +9,7 @@ import {
 } from '../utils/settingDiff';
 import { styles } from '../styles';
 import AccountEmailAccountsOverview from './AccountEmailAccountsOverview.vue';
+import SortableTable, { type SortableTableColumn } from './SortableTable.vue';
 import SettingDiffCell from './SettingDiffCell.vue';
 import SettingDiffPopover from './SettingDiffPopover.vue';
 import type { DisabledUser, MailboxUser, UserStatusResponse } from '../types';
@@ -51,6 +52,26 @@ const SETTINGS: SettingDefinition[] = [
 		userValue: (user) => user.dashboardLayout || '',
 		parse: parseListSetting,
 	},
+];
+
+const accountColumns: SortableTableColumn<MailboxUser>[] = [
+	{ id: 'uid', header: 'UID', accessor: (user) => user.uid },
+	{
+		id: 'emailAccounts',
+		header: 'NextSnapMail email accounts',
+		accessor: (user) => [user.primaryEmail, ...Object.keys(user.additionalAccounts || {})].filter(Boolean).join(' '),
+	},
+	...SETTINGS.map((setting) => ({
+		id: setting.key,
+		header: setting.columnHeader,
+		accessor: (user: MailboxUser) => setting.matches(user) ? 0 : 1,
+	})),
+	{ id: 'lastActivity', header: 'Last activity', accessor: (user) => Number(user.lastActivityTs) || 0 },
+	{ id: 'failedLogins', header: 'Failed login attempts', accessor: (user) => user.failedLoginAttempts ?? -1 },
+];
+
+const disabledAccountColumns: SortableTableColumn<DisabledUser>[] = [
+	{ id: 'uid', header: 'UID', accessor: (user) => user.uid },
 ];
 
 interface DiffPopoverState {
@@ -230,13 +251,13 @@ const promoteConfirmSetting = computed(() =>
 <template>
 	<section v-if="loading" :style="styles.formSection">
 		<div :style="styles.proseContent">
-			<h2>Account overview</h2>
+			<h2>Cloud account overview</h2>
 			<p>Loading account status...</p>
 		</div>
 	</section>
 	<section v-else-if="error" :style="styles.formSection">
 		<div :style="styles.proseContent">
-			<h2>Account overview</h2>
+			<h2>Cloud account overview</h2>
 			<p :style="styles.validationMessage">Failed to load status: {{ error }}</p>
 		</div>
 	</section>
@@ -288,23 +309,18 @@ const promoteConfirmSetting = computed(() =>
 				<a :href="nextcloudUsersUrl" :style="styles.inlineLink">Nextcloud account management</a>.
 			</p>
 		</div>
-		<div :style="styles.tableWrapper">
-			<table :style="styles.table">
-				<thead>
-					<tr>
-						<th :style="styles.tableHeader">UID</th>
-						<th :style="styles.tableHeader">NextSnapMail email accounts</th>
-						<th v-for="setting in SETTINGS" :key="setting.key" :style="styles.tableHeader">
-							{{ setting.columnHeader }}
-						</th>
-						<th :style="styles.tableHeader">Last activity</th>
-						<th :style="styles.tableHeader">Failed login attempts</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr v-for="user in users" :key="user.uid">
-						<td :style="styles.tableCell">{{ user.uid }}</td>
-						<td :style="{ ...styles.tableCell, ...styles.emailCell }">
+		<SortableTable
+			:rows="users"
+			:columns="accountColumns"
+			:row-key="(user) => user.uid"
+			empty-message="No active accounts found."
+			:wrapper-style="styles.tableWrapper"
+			:table-style="styles.table"
+			:header-style="styles.tableHeader"
+			:cell-style="styles.tableCell">
+			<template #cell="{ row: user, columnId }">
+				<template v-if="columnId === 'uid'">{{ user.uid }}</template>
+				<template v-else-if="columnId === 'emailAccounts'">
 							<div :style="styles.emailCellLayout">
 								<div :style="styles.emailCellContent">
 									<AccountEmailAccountsOverview :user="user" />
@@ -318,60 +334,45 @@ const promoteConfirmSetting = computed(() =>
 									<span class="icon icon-rename" aria-hidden="true" :style="styles.squareIcon" />
 								</button>
 							</div>
-						</td>
-						<td v-for="setting in SETTINGS" :key="setting.key" :style="styles.tableCell">
-							<div :style="styles.statusWithTooltip">
-								<SettingDiffCell
-									:setting-name="setting.name"
-									:uid="user.uid"
-									:matches="setting.matches(user)"
-									:busy="isSameAction(resetting, user.uid, setting.key) || isSameAction(promoting, user.uid, setting.key)"
-									:applying="isSameAction(resetting, user.uid, setting.key)"
-									:promoting="isSameAction(promoting, user.uid, setting.key)"
-									:inspect-expanded="diffPopover?.uid === user.uid && diffPopover?.settingKey === setting.key"
-									@inspect="toggleDiffPopover(user.uid, setting.key, $event)"
-									@apply-default="applyDefaultSetting(user.uid, setting)"
-									@promote-to-default="promoteConfirm = { uid: user.uid, settingKey: setting.key }" />
-							</div>
-						</td>
-						<td :style="styles.tableCell">
-							<span>{{ formatTimeSince(user.lastActivityTs) }}</span>
-							<span
-								v-if="user.lastActivityTs !== null && user.lastActivityTs !== undefined && Number(user.lastActivityTs) > 0 && isInactiveOverMonth(user.lastActivityTs)"
-								:style="styles.inactiveWarning"
-								title="No activity for more than one month">!</span>
-						</td>
-						<td :style="styles.tableCell">
-							{{ Number.isInteger(user.failedLoginAttempts) ? user.failedLoginAttempts : '-' }}
-						</td>
-					</tr>
-					<tr v-if="users.length === 0">
-						<td :style="styles.tableCell" :colspan="4 + SETTINGS.length">
-							No active accounts found.
-						</td>
-					</tr>
-				</tbody>
-			</table>
-		</div>
+				</template>
+				<template v-else-if="SETTINGS.some((setting) => setting.key === columnId)">
+					<div :style="styles.statusWithTooltip">
+						<SettingDiffCell
+							:setting-name="SETTINGS.find((setting) => setting.key === columnId)?.name || ''"
+							:uid="user.uid"
+							:matches="SETTINGS.find((setting) => setting.key === columnId)?.matches(user) || false"
+							:busy="isSameAction(resetting, user.uid, columnId as SettingKey) || isSameAction(promoting, user.uid, columnId as SettingKey)"
+							:applying="isSameAction(resetting, user.uid, columnId as SettingKey)"
+							:promoting="isSameAction(promoting, user.uid, columnId as SettingKey)"
+							:inspect-expanded="diffPopover?.uid === user.uid && diffPopover?.settingKey === columnId"
+							@inspect="toggleDiffPopover(user.uid, columnId as SettingKey, $event)"
+							@apply-default="applyDefaultSetting(user.uid, SETTINGS.find((setting) => setting.key === columnId)!)"
+							@promote-to-default="promoteConfirm = { uid: user.uid, settingKey: columnId as SettingKey }" />
+					</div>
+				</template>
+				<template v-else-if="columnId === 'lastActivity'">
+					<span>{{ formatTimeSince(user.lastActivityTs) }}</span>
+					<span
+						v-if="user.lastActivityTs !== null && user.lastActivityTs !== undefined && Number(user.lastActivityTs) > 0 && isInactiveOverMonth(user.lastActivityTs)"
+						:style="styles.inactiveWarning"
+						title="No activity for more than one month">!</span>
+				</template>
+				<template v-else-if="columnId === 'failedLogins'">
+					{{ Number.isInteger(user.failedLoginAttempts) ? user.failedLoginAttempts : '-' }}
+				</template>
+			</template>
+		</SortableTable>
 		<div :style="styles.proseContent">
 			<h3 :style="styles.subheading">Disabled accounts</h3>
 		</div>
-		<div :style="styles.tableWrapper">
-			<table :style="styles.table">
-				<thead>
-					<tr>
-						<th :style="styles.tableHeader">UID</th>
-					</tr>
-				</thead>
-				<tbody>
-					<tr v-for="user in disabledUsers" :key="`disabled-${user.uid}`">
-						<td :style="styles.tableCell">{{ user.uid }}</td>
-					</tr>
-					<tr v-if="disabledUsers.length === 0">
-						<td :style="styles.tableCell">No disabled accounts found.</td>
-					</tr>
-				</tbody>
-			</table>
-		</div>
+		<SortableTable
+			:rows="disabledUsers"
+			:columns="disabledAccountColumns"
+			:row-key="(user) => user.uid"
+			empty-message="No disabled accounts found."
+			:wrapper-style="styles.tableWrapper"
+			:table-style="styles.table"
+			:header-style="styles.tableHeader"
+			:cell-style="styles.tableCell" />
 	</section>
 </template>

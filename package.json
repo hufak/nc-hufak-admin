@@ -10,6 +10,7 @@
   "dependencies": {
     "@nextcloud/dialogs": "^3.1.2",
     "@nextcloud/vue": "^9.5.0",
+    "@tanstack/vue-table": "^8.21.3",
     "css-loader": "^7.1.4",
     "i18next": "^25.10.4",
     "jsondiffpatch": "^0.7.3",

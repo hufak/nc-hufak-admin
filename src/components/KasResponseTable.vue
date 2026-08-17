@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, type CSSProperties } from 'vue';
 import { styles } from '../styles';
+import SortableTable, { type SortableTableColumn } from './SortableTable.vue';
 
 defineOptions({ name: 'KasResponseTable' });
 
@@ -15,7 +16,6 @@ const wrappingCellStyle: CSSProperties = {
 };
 const tableCellStyle: CSSProperties = { ...styles.tableCell, ...wrappingCellStyle };
 const tableHeaderStyle: CSSProperties = { ...styles.tableHeader, ...wrappingCellStyle };
-const rowHeaderStyle: CSSProperties = { ...tableHeaderStyle, width: '1%' };
 
 const presentation = computed(() =>
 	props.value !== null && typeof props.value === 'object'
@@ -33,6 +33,13 @@ const compactColumns = computed(() =>
 const compactRows = computed(() =>
 	isCompactTable.value ? presentation.value?.rows as Record<string, unknown>[] : [],
 );
+const compactTableColumns = computed<SortableTableColumn<Record<string, unknown>>[]>(() =>
+	compactColumns.value.map((column) => ({
+		id: column,
+		header: column === '_record' ? 'Record' : column,
+		accessor: (row) => row[column] ?? '',
+	})),
+);
 const isStructured = computed(() => props.value !== null && typeof props.value === 'object');
 const entries = computed(() => {
 	if (Array.isArray(props.value)) {
@@ -43,39 +50,39 @@ const entries = computed(() => {
 	}
 	return [] as [string, unknown][];
 });
+const structuredRows = computed(() => entries.value.map(([key, value]) => ({ key, value })));
+const structuredColumns: SortableTableColumn<{ key: string, value: unknown }>[] = [
+	{ id: 'key', header: 'Field', accessor: (row) => row.key },
+	{ id: 'value', header: 'Value', accessor: (row) => typeof row.value === 'string' || typeof row.value === 'number' ? row.value : '' },
+];
 </script>
 
 <template>
-	<div v-if="isCompactTable" :style="tableWrapperStyle">
-		<table :style="tableStyle">
-			<thead>
-				<tr>
-					<th v-for="column in compactColumns" :key="column" scope="col" :style="tableHeaderStyle">
-						{{ column === '_record' ? 'Record' : column }}
-					</th>
-				</tr>
-			</thead>
-			<tbody>
-				<tr v-for="(row, rowIndex) in compactRows" :key="rowIndex">
-					<td v-for="column in compactColumns" :key="column" :style="tableCellStyle">
-						{{ row[column] ?? '' }}
-					</td>
-				</tr>
-			</tbody>
-		</table>
-	</div>
-	<div v-else-if="isStructured" :style="tableWrapperStyle">
-		<table :style="tableStyle">
-			<tbody>
-				<tr v-for="[key, entryValue] in entries" :key="key">
-					<th scope="row" :style="rowHeaderStyle">{{ key }}</th>
-					<td :style="tableCellStyle">
-						<KasResponseTable v-if="entryValue !== null && typeof entryValue === 'object'" :value="entryValue" />
-						<span v-else>{{ entryValue ?? '' }}</span>
-					</td>
-				</tr>
-			</tbody>
-		</table>
-	</div>
+	<SortableTable
+		v-if="isCompactTable"
+		:rows="compactRows"
+		:columns="compactTableColumns"
+		:row-key="(_, index) => String(index)"
+		:wrapper-style="tableWrapperStyle"
+		:table-style="tableStyle"
+		:header-style="tableHeaderStyle"
+		:cell-style="tableCellStyle" />
+	<SortableTable
+		v-else-if="isStructured"
+		:rows="structuredRows"
+		:columns="structuredColumns"
+		:row-key="(row) => row.key"
+		:wrapper-style="tableWrapperStyle"
+		:table-style="tableStyle"
+		:header-style="tableHeaderStyle"
+		:cell-style="tableCellStyle">
+		<template #cell="{ row, value, columnId }">
+			<template v-if="columnId === 'value'">
+				<KasResponseTable v-if="row.value !== null && typeof row.value === 'object'" :value="row.value" />
+				<span v-else>{{ value ?? '' }}</span>
+			</template>
+			<template v-else>{{ value }}</template>
+		</template>
+	</SortableTable>
 	<span v-else>{{ value ?? '' }}</span>
 </template>

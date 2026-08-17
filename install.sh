@@ -17,15 +17,15 @@ echo "==> Creating remote app directory..."
 ssh "${REMOTE_USER}@${REMOTE_HOST}" "mkdir -p '${REMOTE_PATH}/studentstats2025'"
 
 echo "==> Deploying app files..."
-scp -r appinfo lib img js css templates "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/"
-
-# the defaults the backend reads from the app root
-scp hufak_default_apporder.json hufak_default_shared_mailboxes.json \
+rsync -azv --itemize-changes \
+	appinfo lib img js css templates \
+	hufak_default_apporder.json hufak_default_shared_mailboxes.json \
 	hufak_signature_template.txt hufak_default_new_account_information_sheet.md \
 	"${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/"
 
 # the student stats CSVs, served through the app's student-stats API route
-scp -r studentstats2025/public "${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/studentstats2025/"
+rsync -azv --itemize-changes studentstats2025/public/ \
+	"${REMOTE_USER}@${REMOTE_HOST}:${REMOTE_PATH}/studentstats2025/public/"
 
 # Nextcloud caches the app's routes, templates and asset URLs, so freshly copied
 # files only take effect once the app is loaded again. Disabling and re-enabling

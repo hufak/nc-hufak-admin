@@ -14,8 +14,8 @@ The easiest way to access email is through the Cloud. All emails are forwarded t
 
 To send email from another device, use:
 
-- **IMAP server:** {{imap_server}} — port {{imap_port}}, SSL/TLS
-- **SMTP server:** {{smtp_server}} — port {{smtp_port}}, SSL/TLS
+- **IMAP server:** {{imap_server}} — port 143, SSL/TLS
+- **SMTP server:** {{smtp_server}} — port 465, SSL/TLS
 - **Username:** {{mailbox_username}}
 - **Password:** {{mailbox_password}}
 

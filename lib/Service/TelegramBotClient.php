@@ -24,7 +24,7 @@ class TelegramBotClient {
 		return $this->request($token, 'getMe');
 	}
 
-	/** @return list<array{user: array<string, mixed>, status: string, adminLabel: string, isAnonymous: bool, isEditable: bool, rights: array<string, bool>}> */
+	/** @return list<array{user: array<string, mixed>, status: string, adminLabel: string, isAnonymous: bool, isEditable: bool, rights: array<string, bool>, isAdministrator: bool}> */
 	public function getChatAdministrators(string $token, string $chatId): array {
 		$administrators = [];
 		foreach ($this->rawChatAdministrators($token, $chatId) as $member) {
@@ -42,9 +42,103 @@ class TelegramBotClient {
 				'isAnonymous' => (bool)($member['is_anonymous'] ?? false),
 				'isEditable' => (bool)($member['can_be_edited'] ?? false),
 				'rights' => $rights,
+				'isAdministrator' => true,
 			];
 		}
 		return $administrators;
+	}
+
+	/**
+	 * Returns known users from a roster who are currently members of a chat.
+	 *
+	 * Telegram's Bot API does not provide a way to enumerate all chat members,
+	 * so callers must supply the user IDs that should be checked.
+	 *
+	 * @param list<string> $userIds
+	 * @return list<array{user: array<string, mixed>, status: string, adminLabel: string, isAnonymous: bool, isEditable: bool, rights: array<string, bool>, isAdministrator: bool}>
+	 */
+	public function getChatMembersFromRoster(string $token, string $chatId, array $userIds): array {
+		$members = [];
+		foreach ($userIds as $userId) {
+			try {
+				$member = $this->request($token, 'getChatMember', ['chat_id' => $chatId, 'user_id' => $userId]);
+			} catch (\Throwable) {
+				// Telegram reports an error when a roster member is not in this chat.
+				continue;
+			}
+			if (!is_array($member) || !is_array($member['user'] ?? null)
+				|| in_array($member['status'] ?? '', ['left', 'kicked'], true)) {
+				continue;
+			}
+			$members[] = [
+				'user' => $member['user'],
+				'status' => (string)($member['status'] ?? 'member'),
+				'adminLabel' => (string)($member['tag'] ?? ''),
+				'isAnonymous' => false,
+				'isEditable' => false,
+				'rights' => [],
+				'isAdministrator' => false,
+			];
+		}
+		return $members;
+	}
+
+	/**
+	 * Collects known Hufak chat members from pending bot updates without exposing
+	 * message content. Telegram retains unconsumed updates only temporarily, so
+	 * this supplements rather than replaces the manually maintained roster.
+	 *
+	 * @return array{memberIds: list<string>, nextOffset: ?string}
+	 */
+	public function getHufakMemberIdsFromUpdates(string $token, string $chatId, ?string $offset): array {
+		$parameters = [
+			'timeout' => 0,
+			'allowed_updates' => json_encode(['message', 'chat_member'], JSON_THROW_ON_ERROR),
+		];
+		if ($offset !== null && preg_match('/^\d+$/', $offset)) {
+			$parameters['offset'] = $offset;
+		}
+		$updates = $this->request($token, 'getUpdates', $parameters);
+		if (!is_array($updates) || !array_is_list($updates)) {
+			throw new \RuntimeException('Telegram Bot API returned an invalid update list');
+		}
+
+		$memberIds = [];
+		$highestUpdateId = null;
+		foreach ($updates as $update) {
+			if (!is_array($update)) {
+				continue;
+			}
+			$updateId = $update['update_id'] ?? null;
+			if (is_int($updateId) || (is_string($updateId) && preg_match('/^\d+$/', $updateId))) {
+				$highestUpdateId = max($highestUpdateId ?? 0, (int)$updateId);
+			}
+
+			$message = $update['message'] ?? null;
+			if (is_array($message) && (string)($message['chat']['id'] ?? '') === $chatId) {
+				$userId = $message['from']['id'] ?? null;
+				if (is_int($userId) || (is_string($userId) && preg_match('/^\d+$/', $userId))) {
+					$memberIds[(string)$userId] = true;
+				}
+			}
+
+			$membership = $update['chat_member'] ?? null;
+			if (!is_array($membership) || (string)($membership['chat']['id'] ?? '') !== $chatId) {
+				continue;
+			}
+			$newMembership = $membership['new_chat_member'] ?? null;
+			$userId = is_array($newMembership) ? ($newMembership['user']['id'] ?? null) : null;
+			$status = is_array($newMembership) ? ($newMembership['status'] ?? '') : '';
+			if ((is_int($userId) || (is_string($userId) && preg_match('/^\d+$/', $userId)))
+				&& !in_array($status, ['left', 'kicked'], true)) {
+				$memberIds[(string)$userId] = true;
+			}
+		}
+
+		return [
+			'memberIds' => array_keys($memberIds),
+			'nextOffset' => $highestUpdateId === null ? null : (string)($highestUpdateId + 1),
+		];
 	}
 
 	/** @return list<string> */
@@ -83,6 +177,25 @@ class TelegramBotClient {
 			'chat_id' => $chatId,
 			'user_id' => $userId,
 			'custom_title' => $label,
+		], true);
+	}
+
+	/** Sets an administrator custom title or a regular-member tag as appropriate. */
+	public function setChatMemberLabel(string $token, string $chatId, string $userId, string $label): void {
+		$this->assertValidMemberLabel($label);
+		$member = $this->request($token, 'getChatMember', ['chat_id' => $chatId, 'user_id' => $userId]);
+		$status = (string)($member['status'] ?? '');
+		if (in_array($status, ['administrator', 'creator'], true)) {
+			$this->setAdministratorLabel($token, $chatId, $userId, $label);
+			return;
+		}
+		if ($status !== 'member') {
+			throw new \RuntimeException('Telegram user is not an active regular member of this group');
+		}
+		$this->request($token, 'setChatMemberTag', [
+			'chat_id' => $chatId,
+			'user_id' => $userId,
+			'tag' => $label,
 		], true);
 	}
 
@@ -199,6 +312,15 @@ class TelegramBotClient {
 			return $member;
 		}
 		throw new \RuntimeException('Telegram administrator was not found');
+	}
+
+	private function assertValidMemberLabel(string $label): void {
+		if (mb_strlen($label) > 16) {
+			throw new \RuntimeException('Telegram member labels must be 16 characters or fewer');
+		}
+		if (preg_match('/[\p{Extended_Pictographic}\p{Regional_Indicator}\x{FE0F}\x{20E3}]/u', $label)) {
+			throw new \RuntimeException('Telegram member labels cannot contain emoji');
+		}
 	}
 
 	private function profilePhoto(string $token, string $userId): ?string {

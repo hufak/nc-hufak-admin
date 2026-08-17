@@ -28,7 +28,12 @@ class ApiController extends Controller {
 	private const CONFIG_DASHBOARD_LAYOUT = 'dashboard_layout';
 	private const CONFIG_NEW_ACCOUNT_TEMPLATE = 'new_account_information_template';
 	private const CONFIG_TELEGRAM_BOT_TOKEN = 'telegram_bot_token';
-	private const TELEGRAM_ANGESPANNTE_CHAT_ID = '-1002497118109';
+	private const CONFIG_TELEGRAM_HUFAK_GROUP_CHAT_ID = 'telegram_hufak_group_chat_id';
+	private const CONFIG_TELEGRAM_ANGEWANDTE_GROUP_CHAT_ID = 'telegram_angewandte_group_chat_id';
+	private const CONFIG_TELEGRAM_HUFAK_MEMBER_IDS = 'telegram_hufak_member_ids';
+	private const CONFIG_TELEGRAM_UPDATE_OFFSET = 'telegram_update_offset';
+	private const DEFAULT_TELEGRAM_HUFAK_GROUP_CHAT_ID = '-1002550179549';
+	private const DEFAULT_TELEGRAM_ANGEWANDTE_GROUP_CHAT_ID = '-1002497118109';
 	private const TELEGRAM_ADMIN_GROUP = 'Telegram admin';
 	private const SNAPPYMAIL_USER_CONFIG_APP = 'nextsnapmail';
 	private const SNAPPYMAIL_USER_CONFIG_EMAIL = 'nextsnapmail-email';
@@ -783,30 +788,91 @@ class ApiController extends Controller {
 		]);
 	}
 
+	/** @NoAdminRequired */
+	public function getTelegramSettings(): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse(['message' => 'Admin permissions required'], Http::STATUS_FORBIDDEN);
+		}
+		return new DataResponse([
+			'hufakGroupChatId' => $this->getTelegramChatId(
+				self::CONFIG_TELEGRAM_HUFAK_GROUP_CHAT_ID,
+				self::DEFAULT_TELEGRAM_HUFAK_GROUP_CHAT_ID,
+			),
+			'angewandteGroupChatId' => $this->getAngewandteTelegramChatId(),
+			'hufakMemberIds' => implode(',', $this->getHufakTelegramMemberIds()),
+		]);
+	}
+
+	/** @NoAdminRequired */
+	public function setHufakTelegramGroupChatId(): DataResponse {
+		return $this->setTelegramGroupChatId(
+			self::CONFIG_TELEGRAM_HUFAK_GROUP_CHAT_ID,
+			'Hufak group chat ID',
+		);
+	}
+
+	/** @NoAdminRequired */
+	public function setAngewandteTelegramGroupChatId(): DataResponse {
+		return $this->setTelegramGroupChatId(
+			self::CONFIG_TELEGRAM_ANGEWANDTE_GROUP_CHAT_ID,
+			'Angewandte group chat ID',
+		);
+	}
+
+	/** @NoAdminRequired */
+	public function setHufakTelegramMemberIds(): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse(['message' => 'Admin permissions required'], Http::STATUS_FORBIDDEN);
+		}
+		$memberIds = $this->normaliseTelegramUserIds((string)$this->request->getParam('memberIds', ''));
+		if ($memberIds === null) {
+			return new DataResponse(['message' => 'Hufak member IDs must be comma-separated numeric Telegram user IDs'], Http::STATUS_BAD_REQUEST);
+		}
+		$value = implode(',', $memberIds);
+		$this->config->setAppValue($this->appName, self::CONFIG_TELEGRAM_HUFAK_MEMBER_IDS, $value);
+		return new DataResponse(['message' => 'Hufak member roster saved', 'memberIds' => $value]);
+	}
+
 	/**
 	 * @NoAdminRequired
 	 */
 	public function listAngespannteAdministrators(): DataResponse {
 		$canManage = $this->currentUserCanManageTelegram();
+		$chatId = $this->getAngewandteTelegramChatId();
 		$token = trim($this->config->getAppValue($this->appName, self::CONFIG_TELEGRAM_BOT_TOKEN, ''));
 		if ($token === '') {
 			return new DataResponse(['message' => 'Configure a Telegram Bot API key first'], Http::STATUS_PRECONDITION_FAILED);
 		}
 		try {
-			$administrators = $this->telegramBotClient->getChatAdministrators($token, self::TELEGRAM_ANGESPANNTE_CHAT_ID);
+			try {
+				$hufakMemberIds = $this->pollHufakMemberRoster($token);
+			} catch (\Throwable) {
+				// A webhook or expired update queue must not prevent listing the group.
+				$hufakMemberIds = $this->getHufakTelegramMemberIds();
+			}
+			$administrators = $this->telegramBotClient->getChatAdministrators($token, $chatId);
+			$administratorIds = array_flip(array_map(
+				static fn (array $administrator): string => (string)($administrator['user']['id'] ?? ''),
+				$administrators,
+			));
+			$members = array_values(array_filter(
+				$this->telegramBotClient->getChatMembersFromRoster($token, $chatId, $hufakMemberIds),
+				static fn (array $member): bool => !isset($administratorIds[(string)($member['user']['id'] ?? '')]),
+			));
+			$administrators = array_merge($administrators, $members);
 			$assignableRights = $canManage
-				? $this->telegramBotClient->getAssignableAdministratorRights($token, self::TELEGRAM_ANGESPANNTE_CHAT_ID)
+				? $this->telegramBotClient->getAssignableAdministratorRights($token, $chatId)
 				: [];
 		} catch (\Throwable $exception) {
 			return new DataResponse(['message' => $exception->getMessage()], Http::STATUS_BAD_GATEWAY);
 		}
 		return new DataResponse([
 			'message' => 'Telegram administrators loaded',
-			'chatId' => self::TELEGRAM_ANGESPANNTE_CHAT_ID,
-			'administrators' => $canManage ? $administrators : array_map(static function (array $administrator): array {
+			'chatId' => $chatId,
+			'administrators' => $canManage ? $administrators : array_values(array_map(static function (array $administrator): array {
 				unset($administrator['rights']);
 				return $administrator;
-			}, $administrators),
+			}, array_filter($administrators, static fn (array $administrator): bool => ($administrator['isAdministrator'] ?? true) !== false))),
 			'canManage' => $canManage,
 			'assignableRights' => $assignableRights,
 		]);
@@ -820,7 +886,7 @@ class ApiController extends Controller {
 		try {
 			$this->telegramBotClient->setAdministratorAnonymity(
 				trim($this->config->getAppValue($this->appName, self::CONFIG_TELEGRAM_BOT_TOKEN, '')),
-				self::TELEGRAM_ANGESPANNTE_CHAT_ID,
+				$this->getAngewandteTelegramChatId(),
 				$userId,
 				$isAnonymous,
 			);
@@ -836,9 +902,9 @@ class ApiController extends Controller {
 	public function setAngespannteAdministratorLabel(string $userId): DataResponse {
 		$label = trim((string)$this->request->getParam('label', ''));
 		try {
-			$this->telegramBotClient->setAdministratorLabel(
+			$this->telegramBotClient->setChatMemberLabel(
 				trim($this->config->getAppValue($this->appName, self::CONFIG_TELEGRAM_BOT_TOKEN, '')),
-				self::TELEGRAM_ANGESPANNTE_CHAT_ID,
+				$this->getAngewandteTelegramChatId(),
 				$userId,
 				$label,
 			);
@@ -862,7 +928,7 @@ class ApiController extends Controller {
 		try {
 			$this->telegramBotClient->setAdministratorRights(
 				trim($this->config->getAppValue($this->appName, self::CONFIG_TELEGRAM_BOT_TOKEN, '')),
-				self::TELEGRAM_ANGESPANNTE_CHAT_ID,
+				$this->getAngewandteTelegramChatId(),
 				$userId,
 				array_map(static fn ($value): bool => $value === true || $value === '1', $rights),
 			);
@@ -885,7 +951,7 @@ class ApiController extends Controller {
 		try {
 			$this->telegramBotClient->dismissAdministrator(
 				trim($this->config->getAppValue($this->appName, self::CONFIG_TELEGRAM_BOT_TOKEN, '')),
-				self::TELEGRAM_ANGESPANNTE_CHAT_ID,
+				$this->getAngewandteTelegramChatId(),
 				$userId,
 			);
 		} catch (\Throwable $exception) {
@@ -904,7 +970,7 @@ class ApiController extends Controller {
 		try {
 			$preview = $this->telegramBotClient->previewChatMember(
 				trim($this->config->getAppValue($this->appName, self::CONFIG_TELEGRAM_BOT_TOKEN, '')),
-				self::TELEGRAM_ANGESPANNTE_CHAT_ID,
+				$this->getAngewandteTelegramChatId(),
 				trim($identifier),
 			);
 		} catch (\Throwable $exception) {
@@ -930,7 +996,7 @@ class ApiController extends Controller {
 		try {
 			$this->telegramBotClient->addAdministrator(
 				trim($this->config->getAppValue($this->appName, self::CONFIG_TELEGRAM_BOT_TOKEN, '')),
-				self::TELEGRAM_ANGESPANNTE_CHAT_ID,
+				$this->getAngewandteTelegramChatId(),
 				$userId,
 				array_map(static fn ($value): bool => $value === true || $value === '1', $rights),
 				$label,
@@ -1938,6 +2004,80 @@ class ApiController extends Controller {
 		}
 		$group = $this->groupManager->get(self::TELEGRAM_ADMIN_GROUP);
 		return $group !== null && $group->inGroup($user);
+	}
+
+	private function setTelegramGroupChatId(string $configKey, string $label): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse(['message' => 'Admin permissions required'], Http::STATUS_FORBIDDEN);
+		}
+		$chatId = trim((string)$this->request->getParam('chatId', ''));
+		if (!preg_match('/^-?\d+$/', $chatId)) {
+			return new DataResponse(['message' => $label . ' must be a numeric Telegram chat ID'], Http::STATUS_BAD_REQUEST);
+		}
+		$this->config->setAppValue($this->appName, $configKey, $chatId);
+		return new DataResponse(['message' => $label . ' saved', 'chatId' => $chatId]);
+	}
+
+	private function getAngewandteTelegramChatId(): string {
+		return $this->getTelegramChatId(
+			self::CONFIG_TELEGRAM_ANGEWANDTE_GROUP_CHAT_ID,
+			self::DEFAULT_TELEGRAM_ANGEWANDTE_GROUP_CHAT_ID,
+		);
+	}
+
+	private function getTelegramChatId(string $configKey, string $default): string {
+		$chatId = trim($this->config->getAppValue($this->appName, $configKey, $default));
+		return preg_match('/^-?\d+$/', $chatId) ? $chatId : $default;
+	}
+
+	/** @return list<string> */
+	private function getHufakTelegramMemberIds(): array {
+		return $this->normaliseTelegramUserIds(
+			$this->config->getAppValue($this->appName, self::CONFIG_TELEGRAM_HUFAK_MEMBER_IDS, ''),
+		) ?? [];
+	}
+
+	/** @return list<string> */
+	private function pollHufakMemberRoster(string $token): array {
+		$updates = $this->telegramBotClient->getHufakMemberIdsFromUpdates(
+			$token,
+			$this->getTelegramChatId(
+				self::CONFIG_TELEGRAM_HUFAK_GROUP_CHAT_ID,
+				self::DEFAULT_TELEGRAM_HUFAK_GROUP_CHAT_ID,
+			),
+			trim($this->config->getAppValue($this->appName, self::CONFIG_TELEGRAM_UPDATE_OFFSET, '')) ?: null,
+		);
+		$memberIds = array_values(array_unique([
+			...$this->getHufakTelegramMemberIds(),
+			...$updates['memberIds'],
+		]));
+		if ($updates['memberIds'] !== []) {
+			$this->config->setAppValue(
+				$this->appName,
+				self::CONFIG_TELEGRAM_HUFAK_MEMBER_IDS,
+				implode(',', $memberIds),
+			);
+		}
+		if ($updates['nextOffset'] !== null) {
+			$this->config->setAppValue($this->appName, self::CONFIG_TELEGRAM_UPDATE_OFFSET, $updates['nextOffset']);
+		}
+		return $memberIds;
+	}
+
+	/** @return list<string>|null */
+	private function normaliseTelegramUserIds(string $value): ?array {
+		$ids = [];
+		foreach (explode(',', $value) as $candidate) {
+			$candidate = trim($candidate);
+			if ($candidate === '') {
+				continue;
+			}
+			if (!preg_match('/^\d+$/', $candidate)) {
+				return null;
+			}
+			$ids[$candidate] = true;
+		}
+		return array_keys($ids);
 	}
 
 	private function getStoredEmailDomain(): string {

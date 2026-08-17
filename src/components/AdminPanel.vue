@@ -175,7 +175,7 @@ const openConfigureMailForUser = (uid: string) => {
 					v-else-if="currentSection === SECTION_KEYS.DASHBOARD_WIDGETS" />
 				<KasTest v-else-if="currentSection === SECTION_KEYS.KAS_TEST" />
 				<EmailForwards v-else-if="currentSection === SECTION_KEYS.EMAIL_FORWARDS" />
-				<TelegramBotToken v-else-if="currentSection === SECTION_KEYS.TELEGRAM_BOT_TOKEN" />
+				<TelegramBotToken v-else-if="currentSection === SECTION_KEYS.TELEGRAM_API_SETTINGS" />
 				<TelegramAngespannte v-else-if="currentSection === SECTION_KEYS.TELEGRAM_ANGESPANNTE" />
 				<StudentStats v-else />
 			</div>

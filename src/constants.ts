@@ -14,7 +14,7 @@ export type SectionKey =
   | "dashboard-widgets"
   | "kas-api"
   | "email-forwards"
-  | "telegram-bot-token"
+  | "telegram-api-settings"
   | "telegram-angespannte";
 
 const SECTION_KEYS = {
@@ -33,7 +33,7 @@ const SECTION_KEYS = {
   DASHBOARD_WIDGETS: "dashboard-widgets",
   KAS_TEST: "kas-api",
   EMAIL_FORWARDS: "email-forwards",
-  TELEGRAM_BOT_TOKEN: "telegram-bot-token",
+  TELEGRAM_API_SETTINGS: "telegram-api-settings",
   TELEGRAM_ANGESPANNTE: "telegram-angespannte",
 } as const satisfies Record<string, SectionKey>;
 
@@ -174,18 +174,18 @@ const SECTIONS = [
     requiresAdmin: true,
   },
   {
-    key: SECTION_KEYS.TELEGRAM_BOT_TOKEN,
-    label: "Bot API key",
-    description: "Test and store the Telegram Bot API key used by this app.",
+    key: SECTION_KEYS.TELEGRAM_API_SETTINGS,
+    label: "API key & group ids",
+    description: "Test and store the Telegram Bot API key and group chat IDs used by this app.",
     iconClass: "icon-key",
     iconPath: MDI_ROBOT,
     requiresAdmin: true,
   },
   {
     key: SECTION_KEYS.TELEGRAM_ANGESPANNTE,
-    label: "Die Angespannte",
+    label: "Angewandte group chat",
     description:
-      "List Telegram administrators and their permissions in Die Angespannte.",
+      "List Angewandte group administrators and Hufak roster members also in the group.",
     iconClass: "icon-group",
     requiresAdmin: false,
   },
@@ -235,7 +235,7 @@ const SECTION_GROUPS = [
   },
   {
     label: "Telegram",
-    items: [SECTION_KEYS.TELEGRAM_ANGESPANNTE, SECTION_KEYS.TELEGRAM_BOT_TOKEN],
+    items: [SECTION_KEYS.TELEGRAM_ANGESPANNTE, SECTION_KEYS.TELEGRAM_API_SETTINGS],
     requiresAdmin: false,
   },
 ] as const satisfies readonly {

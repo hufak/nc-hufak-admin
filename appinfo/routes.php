@@ -50,6 +50,26 @@ return [
 			'verb' => 'POST',
 		],
 		[
+			'name' => 'api#getTelegramSettings',
+			'url' => '/api/telegram/settings',
+			'verb' => 'GET',
+		],
+		[
+			'name' => 'api#setHufakTelegramGroupChatId',
+			'url' => '/api/telegram/settings/hufak-group-chat-id',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'api#setAngewandteTelegramGroupChatId',
+			'url' => '/api/telegram/settings/angewandte-group-chat-id',
+			'verb' => 'POST',
+		],
+		[
+			'name' => 'api#setHufakTelegramMemberIds',
+			'url' => '/api/telegram/settings/hufak-member-ids',
+			'verb' => 'POST',
+		],
+		[
 			'name' => 'api#listAngespannteAdministrators',
 			'url' => '/api/telegram/angespannte/administrators',
 			'verb' => 'GET',

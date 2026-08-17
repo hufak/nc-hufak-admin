@@ -139,6 +139,12 @@ export interface TelegramBotTokenResponse {
 	bot?: Record<string, string | number | boolean | null>
 }
 
+export interface TelegramSettingsResponse {
+	hufakGroupChatId?: string
+	angewandteGroupChatId?: string
+	hufakMemberIds?: string
+}
+
 export interface TelegramAdministrator {
 	user?: {
 		id?: number
@@ -150,6 +156,7 @@ export interface TelegramAdministrator {
 	adminLabel?: string
 	isAnonymous?: boolean
 	isEditable?: boolean
+	isAdministrator?: boolean
 	rights?: Record<string, boolean>
 }
 

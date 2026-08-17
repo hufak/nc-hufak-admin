@@ -66,8 +66,14 @@ const orderedRightNames = computed(() => {
 	return [...rightNames.value.filter((right) => assignable.has(right)), ...rightNames.value.filter((right) => !assignable.has(right))];
 });
 const isSavingAdministrator = computed(() => updatingUserIds.value.size > 0);
+const telegramLabelError = computed(() => {
+	if ([...newAdminLabel.value].length > 16) return 'Telegram labels can contain at most 16 characters.';
+	return /[\p{Extended_Pictographic}\p{Regional_Indicator}\uFE0F\u20E3]/u.test(newAdminLabel.value)
+		? 'Telegram labels cannot contain emoji.'
+		: '';
+});
 const columns = computed<SortableTableColumn<TelegramAdministrator>[]>(() => [
-	{ id: 'name', header: 'Administrator', accessor: (administrator) => administratorName(administrator) },
+	{ id: 'name', header: 'Member', accessor: (administrator) => administratorName(administrator) },
 	{ id: 'username', header: 'Username', accessor: (administrator) => administrator.user?.username ? `@${administrator.user.username}` : '' },
 	{ id: 'adminLabel', header: 'Public label', accessor: (administrator) => administrator.adminLabel || '' },
 	{ id: 'isAnonymous', header: 'Post anonymously', accessor: (administrator) => administrator.isAnonymous === true },
@@ -199,7 +205,7 @@ const updateAdministratorRight = async (administrator: TelegramAdministrator, ri
 };
 
 const openLabelDialog = (administrator: TelegramAdministrator) => {
-	if (administrator.isEditable === false || isSavingAdministrator.value) return;
+	if ((administrator.isAdministrator !== false && administrator.isEditable === false) || isSavingAdministrator.value) return;
 	labelAdministrator.value = administrator;
 	newAdminLabel.value = administrator.adminLabel || '';
 	labelProfile.value = null;
@@ -257,6 +263,13 @@ const openAddDialog = () => {
 	newAdministratorLabel.value = '';
 	newAdministratorIsAnonymous.value = false;
 	newAdministratorRights.value = defaultAdministratorRights();
+};
+const addRosterMemberAsAdministrator = (member: TelegramAdministrator) => {
+	if (!canManage.value || member.isAdministrator !== false || isSavingAdministrator.value) return;
+	const userId = administratorId(member);
+	if (userId === '') return;
+	openAddDialog();
+	candidate.value = userId;
 };
 const closeAddDialog = () => {
 	addDialogOpen.value = false;
@@ -378,9 +391,9 @@ onMounted(() => { void loadAdministrators(); });
 <template>
 	<section :style="styles.formSection">
 		<div :style="styles.proseContent">
-			<h2>Die Angespannte</h2>
+			<h2>Angewandte group chat</h2>
 			<div :style="introRowStyle">
-				<p :style="styles.hintText">Telegram group administrators and their granted rights{{ chatId ? ` for ${chatId}` : '' }}.</p>
+				<p :style="styles.hintText">Angewandte group administrators and Hufak roster members who are also in this group{{ chatId ? ` (${chatId})` : '' }}.</p>
 				<NcButton type="button" variant="secondary" :loading="isLoading" :disabled="isSavingAdministrator" @click="loadAdministrators">Refresh</NcButton>
 			</div>
 		</div>
@@ -392,19 +405,23 @@ onMounted(() => { void loadAdministrators(); });
 			:rows="administrators"
 			:columns="columns"
 			:row-key="(administrator) => administratorId(administrator) || String(administrator.user?.username || administrator.status)"
-			empty-message="No Telegram administrators found."
+			empty-message="No matching Angewandte group members found."
 			:table-style="tableStyle"
 			:header-style="cellStyle"
 			:cell-style="cellStyle">
 			<template #cell="{ row, columnId, value }">
-				<NcButton v-if="columnId === 'name'" type="button" variant="tertiary-no-background" :title="`Copy Telegram user ID ${administratorId(row)}`" @click="copyAdministratorId(row)">{{ value }}</NcButton>
-				<NcButton v-else-if="columnId === 'adminLabel'" type="button" variant="tertiary-no-background" :disabled="!row.isEditable || isSavingAdministrator" :loading="isUpdating(row)" :title="row.isEditable ? undefined : 'Telegram does not allow this bot to edit that administrator'" @click="openLabelDialog(row)"><span :style="value ? undefined : unsetLabelStyle">{{ value || 'Set label' }}</span></NcButton>
-				<span v-else-if="columnId === 'isAnonymous'" :style="checkboxCellStyle"><NcCheckboxRadioSwitch :model-value="Boolean(value)" :disabled="!row.isEditable || isSavingAdministrator" :title="row.isEditable ? undefined : 'Telegram does not allow this bot to edit that administrator'" :aria-label="`Set ${administratorName(row)} to post anonymously`" @update:model-value="updateAnonymity(row, Boolean($event))" /></span>
+				<span v-if="columnId === 'name'" :style="styles.fieldWithNoteRow">
+					<NcButton type="button" variant="tertiary-no-background" :title="`Copy Telegram user ID ${administratorId(row)}`" @click="copyAdministratorId(row)">{{ value }}</NcButton>
+				</span>
+				<NcButton v-else-if="columnId === 'adminLabel'" type="button" variant="tertiary-no-background" :disabled="(row.isAdministrator !== false && !row.isEditable) || isSavingAdministrator" :loading="isUpdating(row)" :title="row.isAdministrator !== false && !row.isEditable ? 'Telegram does not allow this bot to edit that administrator' : undefined" @click="openLabelDialog(row)"><span :style="value ? undefined : unsetLabelStyle">{{ value || 'Set label' }}</span></NcButton>
+				<span v-else-if="columnId === 'isAnonymous' && row.isAdministrator !== false" :style="checkboxCellStyle"><NcCheckboxRadioSwitch :model-value="Boolean(value)" :disabled="!row.isEditable || isSavingAdministrator" :title="row.isEditable ? undefined : 'Telegram does not allow this bot to edit that administrator'" :aria-label="`Set ${administratorName(row)} to post anonymously`" @update:model-value="updateAnonymity(row, Boolean($event))" /></span>
 				<span v-else-if="columnId === 'status'" :style="statusActionStyle">
 					{{ value }}
+					<NcButton v-if="canManage && row.isAdministrator === false" type="button" size="small" variant="secondary" :disabled="isSavingAdministrator" title="Add as administrator" :aria-label="`Add ${administratorName(row)} as administrator`" @click="addRosterMemberAsAdministrator(row)"><template #icon><span aria-hidden="true">＋</span></template></NcButton>
 					<NcButton v-if="canDismissAdministrator(row)" type="button" size="small" variant="secondary" :disabled="isSavingAdministrator" :loading="isUpdating(row)" title="Dismiss administrator" :aria-label="`Dismiss ${administratorName(row)} as administrator`" @click="openDismissDialog(row)"><template #icon><span class="icon icon-close" aria-hidden="true" /></template></NcButton>
 				</span>
-				<span v-else-if="columnId.startsWith('right:')" :style="checkboxCellStyle"><NcCheckboxRadioSwitch :model-value="Boolean(value)" :disabled="!canManage || !row.isEditable || !isAssignableRight(columnId.slice(6)) || isSavingAdministrator" :title="!row.isEditable ? 'Telegram does not allow this bot to edit that administrator' : !isAssignableRight(columnId.slice(6)) ? 'The bot cannot assign this right' : undefined" :aria-label="administratorRightLabel(columnId.slice(6))" @update:model-value="updateAdministratorRight(row, columnId.slice(6), Boolean($event))" /></span>
+				<span v-else-if="columnId.startsWith('right:') && row.isAdministrator !== false" :style="checkboxCellStyle"><NcCheckboxRadioSwitch :model-value="Boolean(value)" :disabled="!canManage || !row.isEditable || !isAssignableRight(columnId.slice(6)) || isSavingAdministrator" :title="!row.isEditable ? 'Telegram does not allow this bot to edit that administrator' : !isAssignableRight(columnId.slice(6)) ? 'The bot cannot assign this right' : undefined" :aria-label="administratorRightLabel(columnId.slice(6))" @update:model-value="updateAdministratorRight(row, columnId.slice(6), Boolean($event))" /></span>
+				<span v-else-if="columnId === 'isAnonymous' || columnId.startsWith('right:')" aria-hidden="true" />
 				<template v-else>{{ value ?? '' }}</template>
 			</template>
 		</SortableTable>
@@ -422,10 +439,10 @@ onMounted(() => { void loadAdministrators(); });
 			</div>
 			<p v-if="isLoadingLabelProfile" :style="styles.hintText">Loading Telegram profile…</p>
 			<p v-else-if="labelProfileError" :style="styles.hintText">Profile photo unavailable: {{ labelProfileError }}</p>
-			<NcTextField v-model="newAdminLabel" label="Public label" type="text" maxlength="16" :disabled="isSavingLabel" />
+			<NcTextField v-model="newAdminLabel" label="Public label" type="text" maxlength="16" :disabled="isSavingLabel" :error="telegramLabelError !== ''" :helper-text="telegramLabelError || 'Up to 16 characters; emoji are not allowed.'" />
 			<template #actions>
 				<NcButton type="button" :disabled="isSavingLabel" @click="closeLabelDialog">Cancel</NcButton>
-				<NcButton type="button" variant="primary" :loading="isSavingLabel" @click="saveAdminLabel">Save</NcButton>
+				<NcButton type="button" variant="primary" :loading="isSavingLabel" :disabled="telegramLabelError !== ''" @click="saveAdminLabel">Save</NcButton>
 			</template>
 		</NcDialog>
 		<NcDialog v-if="dismissAdministrator" :open="true" name="Dismiss Telegram administrator" @update:open="closeDismissDialog">

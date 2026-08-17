@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue';
+import { computed, defineAsyncComponent, onMounted, ref, type CSSProperties } from 'vue';
 import { apiRequest } from '../api';
 import { styles } from '../styles';
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard';
 import type { NewAccountTemplateResponse } from '../types';
+import { replaceNewAccountTemplateVariables } from '../utils/newAccountTemplate';
 
 const template = ref('');
 const initialTemplate = ref('');
@@ -11,6 +12,33 @@ const loading = ref(true);
 const saving = ref(false);
 const status = ref('');
 const templateTextareaStyle = { ...styles.templateBox, fontFamily: 'monospace' };
+const NcRichText = defineAsyncComponent(async () =>
+	(await import(/* webpackChunkName: 'richtext' */ '../richtext')).NcRichText);
+const previewValues = {
+	cloud_url: 'https://cloud.hufak.net',
+	login_email: 'alex.example@hufak.net',
+	cloud_password: 'example-password',
+	private_email: 'alex@example.org',
+	imap_server: 'w0123456.kasserver.com',
+	smtp_server: 'w0123456.kasserver.com',
+	creation_log: 'Example account creation completed successfully.',
+};
+const previewMarkdown = computed(() =>
+	replaceNewAccountTemplateVariables(template.value, previewValues));
+const editorLayoutStyle: CSSProperties = {
+	display: 'grid',
+	gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 36ch), 1fr))',
+	gap: '16px',
+	alignItems: 'start',
+};
+const previewStyle: CSSProperties = {
+	border: '1px solid var(--color-border)',
+	borderRadius: '8px',
+	padding: '10px 12px',
+	minHeight: '420px',
+	boxSizing: 'border-box',
+	background: 'var(--color-main-background)',
+};
 
 const hasChanges = computed(() => template.value !== initialTemplate.value);
 
@@ -60,7 +88,18 @@ const saveTemplate = async () => {
 			</NcNoteCard>
 		</div>
 		<form :style="styles.form" @submit.prevent="saveTemplate">
-			<textarea v-model="template" :disabled="loading || saving" :style="templateTextareaStyle" aria-label="New account information Markdown template" />
+			<div :style="editorLayoutStyle">
+				<div>
+					<label :style="styles.fieldLabel" for="new-account-template-markdown">Markdown</label>
+					<textarea id="new-account-template-markdown" v-model="template" :disabled="loading || saving" :style="templateTextareaStyle" aria-label="New account information Markdown template" />
+				</div>
+				<div>
+					<h3 :style="styles.subheading">Preview</h3>
+					<div :style="previewStyle">
+						<NcRichText :text="previewMarkdown" use-extended-markdown />
+					</div>
+				</div>
+			</div>
 			<div :style="styles.buttonRow">
 				<button type="submit" :disabled="loading || saving || !hasChanges" :style="styles.submitButton">
 					{{ saving ? 'Saving...' : 'Save account info template' }}

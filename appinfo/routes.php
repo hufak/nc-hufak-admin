@@ -30,6 +30,11 @@ return [
 			'verb' => 'POST',
 		],
 		[
+			'name' => 'api#checkAccountAvailability',
+			'url' => '/api/accounts/availability',
+			'verb' => 'GET',
+		],
+		[
 			'name' => 'api#createKasMailbox',
 			'url' => '/api/accounts/{uid}/kas-mailbox',
 			'verb' => 'POST',
@@ -170,12 +175,12 @@ return [
 			'verb' => 'POST',
 		],
 		[
-			'name' => 'api#getNewAccountTemplate',
+			'name' => 'api#getNewAccountInfoTemplate',
 			'url' => '/api/settings/new-account',
 			'verb' => 'GET',
 		],
 		[
-			'name' => 'api#setNewAccountTemplate',
+			'name' => 'api#setNewAccountInfoTemplate',
 			'url' => '/api/settings/new-account',
 			'verb' => 'POST',
 		],

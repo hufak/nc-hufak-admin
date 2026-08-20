@@ -9,13 +9,13 @@ export type SectionKey =
   | "mailbox-names"
   | "account-overview"
   | "signature-template"
-  | "account-info-template"
+  | "new-account-info-template"
   | "app-order"
   | "dashboard-widgets"
   | "kas-api"
   | "email-forwards"
   | "telegram-api-settings"
-  | "telegram-angespannte";
+  | "telegram";
 
 const SECTION_KEYS = {
   CONTACT_LIST: "contact-list",
@@ -28,13 +28,13 @@ const SECTION_KEYS = {
   MAILBOX_NAMES: "mailbox-names",
   ACCOUNT_OVERVIEW: "account-overview",
   SIGNATURE_TEMPLATE: "signature-template",
-  ACCOUNT_INFO_TEMPLATE: "account-info-template",
+  ACCOUNT_INFO_TEMPLATE: "new-account-info-template",
   APP_ORDER: "app-order",
   DASHBOARD_WIDGETS: "dashboard-widgets",
   KAS_TEST: "kas-api",
   EMAIL_FORWARDS: "email-forwards",
   TELEGRAM_API_SETTINGS: "telegram-api-settings",
-  TELEGRAM_ANGESPANNTE: "telegram-angespannte",
+  TELEGRAM_ANGESPANNTE: "telegram",
 } as const satisfies Record<string, SectionKey>;
 
 /** Icons Nextcloud ships no class for, as Material Design Icons paths:
@@ -145,7 +145,7 @@ const SECTIONS = [
   },
   {
     key: SECTION_KEYS.ACCOUNT_INFO_TEMPLATE,
-    label: "Account info template",
+    label: "New account info template",
     description:
       "Edit the Markdown template used for the printable new-account information sheet.",
     iconClass: "icon-category-office",

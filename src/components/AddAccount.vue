@@ -15,11 +15,12 @@ import AccountCredentialsModal from './AccountCredentialsModal.vue';
 import MailboxCredentialsFields from './MailboxCredentialsFields.vue';
 import type {
 	ApporderResetResponse,
+	AccountAvailabilityResponse,
 	FreescoutUserResponse,
 	KasMailboxCreateResponse,
 	SnappyMailSettingsResponse,
 	UserCreateResponse,
-	NewAccountTemplateResponse,
+	NewAccountInfoTemplateResponse,
 } from '../types';
 
 const props = defineProps<{ emailDomain: string }>();
@@ -48,17 +49,27 @@ const temporaryKasLogin = ref('');
 const temporaryKasPassword = ref('');
 const isCreating = ref(false);
 const isCreateLocked = ref(false);
+const isCheckingAccountAvailability = ref(false);
+const usernameAlreadyExists = ref(false);
+const mailboxAlreadyExists = ref(false);
+const mailboxAvailabilityError = ref('');
 const creationOutput = ref('');
 const creationProgressModalOpen = ref(false);
 const printableNewAccountMarkdown = ref('');
 const newAccountMarkdownElement = ref<HTMLElement | null>(null);
 type KasCredentials = { login: string; password: string };
 let resolveKasCredentials: ((credentials: KasCredentials | null) => void) | null = null;
+let availabilityTimer: ReturnType<typeof setTimeout> | undefined;
+let availabilityRequestId = 0;
+let mailboxAvailabilityDebounceMs = 1000;
+const USERNAME_AVAILABILITY_DEBOUNCE_MS = 300;
+const MAX_MAILBOX_AVAILABILITY_DEBOUNCE_MS = 8000;
 
 const NcRichText = defineAsyncComponent(async () =>
 	(await import(/* webpackChunkName: 'richtext' */ '../richtext')).NcRichText);
 
 const isFullNameValid = computed(() => fullNameIsValid(fullName.value));
+const hasAccountConflict = computed(() => usernameAlreadyExists.value || mailboxAlreadyExists.value);
 const mailboxToggleStyle: CSSProperties = { whiteSpace: 'nowrap' };
 const additionalMailboxSelectStyle: CSSProperties = { width: 'min(100%, 52ch)' };
 const emailAccessSubitemStyle: CSSProperties = { marginInlineStart: '28px', paddingInlineStart: '12px', borderInlineStart: '2px solid var(--color-border)' };
@@ -96,7 +107,7 @@ const printAccountDetails = async () => {
 	let template = '# New account details\n\n{{creation_log}}';
 	const [mailServerResult, templateResult] = await Promise.allSettled([
 		apiRequest<{ host?: string }>(OC.generateUrl('/apps/hufak/api/kas/mail-server-settings')),
-		apiRequest<NewAccountTemplateResponse>(OC.generateUrl('/apps/hufak/api/settings/new-account')),
+		apiRequest<NewAccountInfoTemplateResponse>(OC.generateUrl('/apps/hufak/api/settings/new-account')),
 	]);
 	if (mailServerResult.status === 'fulfilled') {
 		mailServerHost = String(mailServerResult.value.host || mailServerHost);
@@ -110,6 +121,7 @@ const printAccountDetails = async () => {
 	const cloudUrl = `${window.location.origin}${OC.generateUrl('/')}`;
 	const emailAccountCreated = /ALL-INKL mailbox .* created before the Nextcloud account\./.test(creationOutput.value);
 	printableNewAccountMarkdown.value = replaceNewAccountTemplateVariables(template, {
+		user_name: fullName.value,
 		cloud_url: cloudUrl,
 		login_email: email.value,
 		cloud_password: cloudPassword,
@@ -123,19 +135,26 @@ const printAccountDetails = async () => {
 		smtp_port: '465',
 		mailbox_username: email.value,
 		mailbox_password: mailboxPassword,
+		shared_accounts: additionalEmailAccounts.value.length > 0
+			? additionalEmailAccounts.value.join(', ')
+			: 'No additional shared mailbox accounts configured.',
 		creation_log: creationOutput.value,
 	});
 	await import(/* webpackChunkName: 'richtext' */ '../richtext');
 	await nextTick();
-	const renderedTemplate = newAccountMarkdownElement.value?.innerHTML
+	const renderedTemplateSource = newAccountMarkdownElement.value?.innerHTML
 		?? `<pre>${escapeHtml(printableNewAccountMarkdown.value)}</pre>`;
+	const printContent = document.createElement('div');
+	printContent.innerHTML = renderedTemplateSource;
+	printContent.querySelectorAll('button').forEach((button) => button.remove());
+	const renderedTemplate = printContent.innerHTML;
 	if (printWindow.closed) {
 		return;
 	}
 	printWindow.document.open();
 	printWindow.document.write(`<!doctype html>
 <html lang="en"><head><meta charset="utf-8"><title>Account details: ${escapeHtml(accountName)}</title>
-<style>body{font-family:system-ui,sans-serif;margin:32px;max-width:800px;color:#111}h1{font-size:26px;margin:0 0 24px}h2{font-size:18px;margin:28px 0 10px;padding-bottom:6px;border-bottom:1px solid #bbb}h3{font-size:16px;margin:22px 0 8px}p,li{line-height:1.45}ul{padding-left:22px}code{font-family:ui-monospace,monospace}pre{white-space:pre-wrap;overflow-wrap:break-word;border:1px solid #bbb;border-radius:6px;padding:16px;font:12px/1.45 ui-monospace,monospace}a{color:#004a8f;text-decoration:underline}@media print{body{margin:16mm}}</style>
+<style>body{font-family:system-ui,sans-serif;font-size:14px;line-height:1.4;margin:32px;max-width:800px;color:#111}h1{font-size:22px;line-height:1.2;margin:0 0 20px}h2{font-size:16px;line-height:1.25;margin:24px 0 8px;padding-bottom:6px;border-bottom:1px solid #bbb}h3{font-size:15px;line-height:1.3;margin:18px 0 6px}p,li{line-height:1.4}ul{padding-left:22px}code{font-family:ui-monospace,monospace}pre{white-space:pre-wrap;overflow-wrap:break-word;border:1px solid #bbb;border-radius:6px;padding:12px;font:12px/1.4 ui-monospace,monospace}button{display:none!important}a{color:#004a8f;text-decoration:underline}@media print{body{margin:16mm}}</style>
 </head><body>${renderedTemplate}</body></html>`);
 	printWindow.document.close();
 	printWindow.focus();
@@ -146,6 +165,55 @@ watch([username, () => props.emailDomain], () => {
 	email.value = username.value.trim() === ''
 		? ''
 		: buildEmailFromUsername(username.value, props.emailDomain);
+});
+
+watch([username, email, createAllInklMailbox], () => {
+	availabilityRequestId += 1;
+	const requestId = availabilityRequestId;
+	if (availabilityTimer) clearTimeout(availabilityTimer);
+
+	const requestedUsername = username.value.trim().toLowerCase();
+	const requestedEmail = email.value.trim().toLowerCase();
+	const checkMailbox = createAllInklMailbox.value && requestedEmail !== '';
+	usernameAlreadyExists.value = false;
+	mailboxAlreadyExists.value = false;
+	mailboxAvailabilityError.value = '';
+
+	if (requestedUsername === '' && !checkMailbox) {
+		isCheckingAccountAvailability.value = false;
+		return;
+	}
+
+	isCheckingAccountAvailability.value = true;
+	availabilityTimer = setTimeout(async () => {
+		try {
+			const parameters = new URLSearchParams({
+				username: requestedUsername,
+				email: requestedEmail,
+				checkMailbox: checkMailbox ? '1' : '0',
+			});
+			const result = await apiRequest<AccountAvailabilityResponse>(
+				`${OC.generateUrl('/apps/hufak/api/accounts/availability')}?${parameters.toString()}`,
+			);
+			if (requestId !== availabilityRequestId) return;
+			usernameAlreadyExists.value = result.usernameExists === true;
+			mailboxAlreadyExists.value = checkMailbox && result.mailboxExists === true;
+			mailboxAvailabilityError.value = checkMailbox ? String(result.mailboxCheckError || '') : '';
+			if (checkMailbox && /flood_protection/i.test(mailboxAvailabilityError.value)) {
+				mailboxAvailabilityDebounceMs = Math.min(
+					mailboxAvailabilityDebounceMs * 2,
+					MAX_MAILBOX_AVAILABILITY_DEBOUNCE_MS,
+				);
+			} else if (checkMailbox && mailboxAvailabilityError.value === '') {
+				mailboxAvailabilityDebounceMs = 1000;
+			}
+		} catch {
+			if (requestId !== availabilityRequestId) return;
+			mailboxAvailabilityError.value = checkMailbox ? 'Could not check whether the KAS mailbox already exists.' : '';
+		} finally {
+			if (requestId === availabilityRequestId) isCheckingAccountAvailability.value = false;
+		}
+	}, checkMailbox ? mailboxAvailabilityDebounceMs : USERNAME_AVAILABILITY_DEBOUNCE_MS);
 });
 
 const onFullNameInput = (value: string | number) => {
@@ -240,6 +308,9 @@ const onClearForm = () => {
 	closeKasCredentialsModal();
 	creationOutput.value = '';
 	isCreateLocked.value = false;
+	usernameAlreadyExists.value = false;
+	mailboxAlreadyExists.value = false;
+	mailboxAvailabilityError.value = '';
 };
 
 const onSubmit = async () => {
@@ -500,7 +571,7 @@ const onSubmit = async () => {
 			</div>
 			<h3 :style="styles.subheading">Cloud account</h3>
 			<div :style="accountTextFieldContainerStyle">
-				<NcTextField id="hufak-username" v-model="username" label="Username" type="text" autocomplete="off" name="hufak-create-username" :disabled="isCreating" :placeholder="usernamePlaceholder" @update:model-value="touch" />
+				<NcTextField id="hufak-username" v-model="username" label="Username" type="text" autocomplete="off" name="hufak-create-username" :disabled="isCreating" :placeholder="usernamePlaceholder" :error="usernameAlreadyExists" :helper-text="usernameAlreadyExists ? `A Nextcloud account with the username “${username.trim()}” already exists.` : ''" @update:model-value="touch" />
 			</div>
 
 			<NcRadioGroup
@@ -528,7 +599,7 @@ const onSubmit = async () => {
 
 			<h3 :style="styles.subheading">Email access</h3>
 			<div :style="accountTextFieldContainerStyle">
-				<NcTextField id="hufak-email" v-model="email" label="Email accounts" type="email" autocomplete="off" name="hufak-create-email" :disabled="isCreating" :placeholder="emailPlaceholder" @update:model-value="touch" />
+				<NcTextField id="hufak-email" v-model="email" label="Email accounts" type="email" autocomplete="off" name="hufak-create-email" :disabled="isCreating" :placeholder="emailPlaceholder" :error="mailboxAlreadyExists" :helper-text="mailboxAlreadyExists ? `A KAS mailbox with the address “${email.trim()}” already exists.` : mailboxAvailabilityError" @update:model-value="touch" />
 			</div>
 			<NcCheckboxRadioSwitch id="hufak-create-allinkl-mailbox" v-model="createAllInklMailbox" :disabled="isCreating" :style="mailboxToggleStyle" @update:model-value="onMailboxCreationChange">
 				create new mailbox via KAS API and set as NextSnapMail primary email
@@ -542,7 +613,7 @@ const onSubmit = async () => {
 					:keep-open="true"
 					:disabled="!createAllInklMailbox || isCreating"
 					:loading="isLoadingKasMailboxes"
-					input-label="add NextSnapMail access to department accounts:"
+					input-label="add NextSnapMail access to department account(s):"
 					placeholder="No additional mailbox"
 					:style="additionalMailboxSelectStyle"
 					@open="loadKasMailboxes"
@@ -575,7 +646,7 @@ const onSubmit = async () => {
 			<div :style="styles.buttonRow">
 				<button
 					type="submit"
-					:disabled="!isFullNameValid || isCreating || isCreateLocked"
+					:disabled="!isFullNameValid || isCreating || isCreateLocked || isCheckingAccountAvailability || hasAccountConflict"
 					:style="styles.submitButton">
 					{{ isCreating ? 'Creating...' : 'Create' }}
 				</button>

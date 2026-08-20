@@ -222,6 +222,7 @@ class ApiController extends Controller {
 
 		return new DataResponse([
 			'apporder' => $this->getConfiguredApporder(),
+			'defaultApporder' => $this->readDefaultApporder(),
 		]);
 	}
 
@@ -269,6 +270,7 @@ class ApiController extends Controller {
 
 		return new DataResponse([
 			'dashboardLayout' => $this->getConfiguredDashboardLayout(),
+			'defaultDashboardLayout' => $this->getDefaultDashboardLayout(),
 		]);
 	}
 
@@ -541,6 +543,35 @@ class ApiController extends Controller {
 			'uid' => $uid,
 			'apporder' => $userApporder,
 		]);
+	}
+
+	/**
+	 * @NoAdminRequired
+	 */
+	public function checkAccountAvailability(): DataResponse {
+		if (!$this->currentUserIsAdmin()) {
+			return new DataResponse(['message' => 'Admin permissions required'], Http::STATUS_FORBIDDEN);
+		}
+
+		$username = strtolower(trim((string)$this->request->getParam('username', '')));
+		$email = strtolower(trim((string)$this->request->getParam('email', '')));
+		$checkMailbox = trim((string)$this->request->getParam('checkMailbox', '')) === '1';
+		$response = [
+			'usernameExists' => $username !== '' && $this->userManager->userExists($username),
+			'mailboxExists' => false,
+		];
+
+		if (!$checkMailbox || $email === '') {
+			return new DataResponse($response);
+		}
+
+		try {
+			$response['mailboxExists'] = in_array($email, $this->kasMailClient->mailboxAddresses(), true);
+		} catch (\Throwable $exception) {
+			$response['mailboxCheckError'] = $exception->getMessage();
+		}
+
+		return new DataResponse($response);
 	}
 
 	/**
@@ -1774,6 +1805,7 @@ class ApiController extends Controller {
 
 		try {
 			$template = $this->readOrInitializeSignatureTemplate();
+			$defaultTemplate = $this->readDefaultSignatureTemplate();
 		} catch (\Throwable $exception) {
 			return new DataResponse([
 				'message' => 'Failed to load signature template',
@@ -1783,6 +1815,7 @@ class ApiController extends Controller {
 
 		return new DataResponse([
 			'template' => $template,
+			'defaultTemplate' => $defaultTemplate,
 		]);
 	}
 
@@ -1822,7 +1855,7 @@ class ApiController extends Controller {
 	/**
 	 * @NoAdminRequired
 	 */
-	public function getNewAccountTemplate(): DataResponse {
+	public function getNewAccountInfoTemplate(): DataResponse {
 		if (!$this->currentUserIsAdmin()) {
 			return new DataResponse([
 				'message' => 'Admin permissions required',
@@ -1830,23 +1863,25 @@ class ApiController extends Controller {
 		}
 
 		try {
-			$template = $this->readNewAccountTemplate();
+			$template = $this->readNewAccountInfoTemplate();
+			$defaultTemplate = $this->readDefaultNewAccountInfoTemplate();
 		} catch (\Throwable $exception) {
 			return new DataResponse([
-				'message' => 'Failed to load account info template',
+				'message' => 'Failed to load new account info template',
 				'error' => $exception->getMessage(),
 			], Http::STATUS_INTERNAL_SERVER_ERROR);
 		}
 
 		return new DataResponse([
 			'template' => $template,
+			'defaultTemplate' => $defaultTemplate,
 		]);
 	}
 
 	/**
 	 * @NoAdminRequired
 	 */
-	public function setNewAccountTemplate(): DataResponse {
+	public function setNewAccountInfoTemplate(): DataResponse {
 		if (!$this->currentUserIsAdmin()) {
 			return new DataResponse([
 				'message' => 'Admin permissions required',
@@ -1857,7 +1892,7 @@ class ApiController extends Controller {
 		$this->config->setAppValue($this->appName, self::CONFIG_NEW_ACCOUNT_TEMPLATE, $template);
 
 		return new DataResponse([
-			'message' => 'Account info template saved',
+			'message' => 'New account info template saved',
 			'template' => $template,
 		]);
 	}
@@ -2100,7 +2135,11 @@ class ApiController extends Controller {
 			return $current;
 		}
 
-		// fall back to whatever the dashboard app itself hands new accounts
+		return $this->getDefaultDashboardLayout();
+	}
+
+	private function getDefaultDashboardLayout(): string {
+		// The Dashboard app owns this built-in default; it has no shipped app file.
 		return $this->normalizeDashboardLayout(
 			$this->config->getAppValue('dashboard', 'layout', ''),
 		);
@@ -2135,18 +2174,22 @@ class ApiController extends Controller {
 			return $current;
 		}
 
-		$defaultPath = dirname(__DIR__, 2) . '/' . self::DEFAULT_APPORDER_FILE;
-		if (!is_readable($defaultPath)) {
-			return '';
-		}
-
-		$content = file_get_contents($defaultPath);
-		if ($content === false || trim($content) === '') {
+		$content = $this->readDefaultApporder();
+		if (trim($content) === '') {
 			return '';
 		}
 
 		$this->config->setAppValue($this->appName, self::CONFIG_APPORDER, $content);
 		return $content;
+	}
+
+	private function readDefaultApporder(): string {
+		$defaultPath = dirname(__DIR__, 2) . '/' . self::DEFAULT_APPORDER_FILE;
+		if (!is_readable($defaultPath)) {
+			return '';
+		}
+		$content = file_get_contents($defaultPath);
+		return $content === false ? '' : $content;
 	}
 
 	private function getConfiguredSharedMailboxes(): array {
@@ -2646,24 +2689,21 @@ class ApiController extends Controller {
 			return $settingsFolder->getFile(self::APPDATA_FILE_SIGNATURE_TEMPLATE)->getContent();
 		}
 
-		$defaultTemplatePath = dirname(__DIR__, 2) . '/' . self::DEFAULT_SIGNATURE_TEMPLATE_FILE;
-		$defaultTemplate = '';
-		if (is_readable($defaultTemplatePath)) {
-			$content = file_get_contents($defaultTemplatePath);
-			if ($content !== false) {
-				$defaultTemplate = $content;
-			}
-		}
+		$defaultTemplate = $this->readDefaultSignatureTemplate();
 
 		$settingsFolder->newFile(self::APPDATA_FILE_SIGNATURE_TEMPLATE, $defaultTemplate);
 		return $defaultTemplate;
 	}
 
-	private function readNewAccountTemplate(): string {
+	private function readNewAccountInfoTemplate(): string {
 		$template = $this->config->getAppValue($this->appName, self::CONFIG_NEW_ACCOUNT_TEMPLATE, '');
 		if ($template !== '') {
 			return $template;
 		}
+		return $this->readDefaultNewAccountInfoTemplate();
+	}
+
+	private function readDefaultNewAccountInfoTemplate(): string {
 
 		$defaultTemplatePath = dirname(__DIR__, 2) . '/' . self::DEFAULT_NEW_ACCOUNT_TEMPLATE_FILE;
 		if (!is_readable($defaultTemplatePath)) {
@@ -2675,6 +2715,15 @@ class ApiController extends Controller {
 		}
 
 		return $defaultTemplate;
+	}
+
+	private function readDefaultSignatureTemplate(): string {
+		$defaultTemplatePath = dirname(__DIR__, 2) . '/' . self::DEFAULT_SIGNATURE_TEMPLATE_FILE;
+		if (!is_readable($defaultTemplatePath)) {
+			return '';
+		}
+		$content = file_get_contents($defaultTemplatePath);
+		return $content === false ? '' : $content;
 	}
 
 	private function getSettingsFolder(): ISimpleFolder {

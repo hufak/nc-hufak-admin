@@ -71,6 +71,12 @@ export interface UserCreateResponse {
 	welcomeEmailDeferred?: boolean
 }
 
+export interface AccountAvailabilityResponse {
+	usernameExists?: boolean
+	mailboxExists?: boolean
+	mailboxCheckError?: string
+}
+
 export interface KasMailboxCreateResponse {
 	message?: string
 	email?: string
@@ -126,11 +132,13 @@ export interface SnappyMailSettingsResponse {
 
 export interface SignatureTemplateResponse {
 	template?: string
+	defaultTemplate?: string
 	message?: string
 }
 
-export interface NewAccountTemplateResponse {
+export interface NewAccountInfoTemplateResponse {
 	template?: string
+	defaultTemplate?: string
 	message?: string
 }
 
@@ -177,11 +185,13 @@ export interface TelegramMemberPreviewResponse {
 
 export interface ApporderSettingsResponse {
 	apporder?: string
+	defaultApporder?: string
 	message?: string
 }
 
 export interface DashboardLayoutSettingsResponse {
 	dashboardLayout?: string
+	defaultDashboardLayout?: string
 	message?: string
 }
 

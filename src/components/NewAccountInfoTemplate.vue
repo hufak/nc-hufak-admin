@@ -3,25 +3,34 @@ import { computed, defineAsyncComponent, onMounted, ref, type CSSProperties } fr
 import { apiRequest } from '../api';
 import { styles } from '../styles';
 import NcNoteCard from '@nextcloud/vue/components/NcNoteCard';
-import type { NewAccountTemplateResponse } from '../types';
+import SettingEditorActions from './SettingEditorActions.vue';
+import type { NewAccountInfoTemplateResponse } from '../types';
 import { replaceNewAccountTemplateVariables } from '../utils/newAccountTemplate';
 
 const template = ref('');
 const initialTemplate = ref('');
+const defaultTemplate = ref('');
 const loading = ref(true);
 const saving = ref(false);
 const status = ref('');
-const templateTextareaStyle = { ...styles.templateBox, fontFamily: 'monospace' };
+const templateTextareaStyle = { ...styles.templateBox, fontFamily: 'monospace', height: '100%' };
 const NcRichText = defineAsyncComponent(async () =>
 	(await import(/* webpackChunkName: 'richtext' */ '../richtext')).NcRichText);
 const previewValues = {
+	user_name: 'Alex Example',
 	cloud_url: 'https://cloud.hufak.net',
 	login_email: 'alex.example@hufak.net',
 	cloud_password: 'example-password',
 	private_email: 'alex@example.org',
-	imap_server: 'w0123456.kasserver.com',
-	smtp_server: 'w0123456.kasserver.com',
+	imap_server: 'w00ccd84.kasserver.com',
+	imap_port: '993',
+	smtp_server: 'w00ccd84.kasserver.com',
+	smtp_port: '465',
 	creation_log: 'Example account creation completed successfully.',
+	email_account_status: 'A new Hufak email mailbox was created.',
+	mailbox_username: 'alex.example@hufak.net',
+	mailbox_password: 'example-mailbox-password',
+	shared_accounts: 'department@example.hufak.net',
 };
 const previewMarkdown = computed(() =>
 	replaceNewAccountTemplateVariables(template.value, previewValues));
@@ -29,7 +38,7 @@ const editorLayoutStyle: CSSProperties = {
 	display: 'grid',
 	gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 36ch), 1fr))',
 	gap: '16px',
-	alignItems: 'start',
+	alignItems: 'stretch',
 };
 const previewStyle: CSSProperties = {
 	border: '1px solid var(--color-border)',
@@ -44,11 +53,12 @@ const hasChanges = computed(() => template.value !== initialTemplate.value);
 
 onMounted(async () => {
 	try {
-		const data = await apiRequest<NewAccountTemplateResponse>(
+		const data = await apiRequest<NewAccountInfoTemplateResponse>(
 			OC.generateUrl('/apps/hufak/api/settings/new-account'),
 		);
 		template.value = typeof data.template === 'string' ? data.template : '';
 		initialTemplate.value = template.value;
+		defaultTemplate.value = typeof data.defaultTemplate === 'string' ? data.defaultTemplate : template.value;
 	} catch (err) {
 		status.value = `Error: ${err instanceof Error ? err.message : 'Failed to load template'}`;
 	} finally {
@@ -61,7 +71,7 @@ const saveTemplate = async () => {
 	status.value = 'Saving template...';
 	try {
 		const body = new URLSearchParams({ template: template.value });
-		const data = await apiRequest<NewAccountTemplateResponse>(
+		const data = await apiRequest<NewAccountInfoTemplateResponse>(
 			OC.generateUrl('/apps/hufak/api/settings/new-account'),
 			{
 				method: 'POST',
@@ -70,19 +80,29 @@ const saveTemplate = async () => {
 			},
 		);
 		initialTemplate.value = template.value;
-		status.value = data.message || 'Account info template saved';
+		status.value = data.message || 'New account info template saved';
 	} catch (err) {
 		status.value = `Error: ${err instanceof Error ? err.message : 'Failed to save template'}`;
 	} finally {
 		saving.value = false;
 	}
 };
+
+const resetTemplate = () => {
+	template.value = initialTemplate.value;
+	status.value = '';
+};
+
+const loadDefaultTemplate = () => {
+	template.value = defaultTemplate.value;
+	status.value = '';
+};
 </script>
 
 <template>
 	<section :style="styles.formSection">
 		<div :style="styles.proseContent">
-			<h2>Account info template</h2>
+			<h2>New account info template</h2>
 			<NcNoteCard type="info">
 				Markdown used for the printable account-details handout. Available placeholders include <code v-pre>{{cloud_url}}</code>, <code v-pre>{{login_email}}</code>, <code v-pre>{{cloud_password}}</code>, <code v-pre>{{private_email}}</code>, <code v-pre>{{imap_server}}</code>, <code v-pre>{{smtp_server}}</code>, and <code v-pre>{{creation_log}}</code>.
 			</NcNoteCard>
@@ -90,23 +110,24 @@ const saveTemplate = async () => {
 		<form :style="styles.form" @submit.prevent="saveTemplate">
 			<div :style="editorLayoutStyle">
 				<div>
-					<label :style="styles.fieldLabel" for="new-account-template-markdown">Markdown</label>
-					<textarea id="new-account-template-markdown" v-model="template" :disabled="loading || saving" :style="templateTextareaStyle" aria-label="New account information Markdown template" />
+					<textarea id="new-account-info-template-markdown" v-model="template" rows="30" :disabled="loading || saving" :style="templateTextareaStyle" aria-label="New account information Markdown template" />
 				</div>
 				<div>
-					<h3 :style="styles.subheading">Preview</h3>
-					<div :style="previewStyle">
-						<NcRichText :text="previewMarkdown" use-extended-markdown />
+					<div class="new-account-preview" :style="previewStyle">
+						<NcRichText :key="previewMarkdown" :text="previewMarkdown" use-extended-markdown />
 					</div>
 				</div>
 			</div>
-			<div :style="styles.buttonRow">
-				<button type="submit" :disabled="loading || saving || !hasChanges" :style="styles.submitButton">
-					{{ saving ? 'Saving...' : 'Save account info template' }}
-				</button>
-				<button type="button" :disabled="loading || saving" :style="styles.clearButton" @click="template = initialTemplate; status = ''">Reset</button>
-			</div>
+			<SettingEditorActions save-label="Save new account info template" :loading="loading" :saving="saving" :has-changes="hasChanges" @reset="resetTemplate" @load-defaults="loadDefaultTemplate" />
 			<p v-if="status" :style="styles.successMessage">{{ status }}</p>
 		</form>
 	</section>
 </template>
+
+<style scoped>
+.new-account-preview :deep(.hljs-emphasis),
+.new-account-preview :deep(em) {
+	color: var(--color-main-text);
+	font-style: italic;
+}
+</style>

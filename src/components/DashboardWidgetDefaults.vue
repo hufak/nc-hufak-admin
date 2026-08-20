@@ -29,6 +29,8 @@ function getWidgetLayoutValidationMessage(value: string): string {
 
 const readLayout = (data: Record<string, unknown>) =>
 	typeof data.dashboardLayout === 'string' ? data.dashboardLayout : '';
+const readDefaultLayout = (data: Record<string, unknown>) =>
+	typeof data.defaultDashboardLayout === 'string' ? data.defaultDashboardLayout : '';
 </script>
 
 <template>
@@ -38,6 +40,7 @@ const readLayout = (data: Record<string, unknown>) =>
 		url="/apps/hufak/api/settings/dashboard-layout"
 		payload-key="dashboardLayout"
 		:read-value="readLayout"
+		:read-default-value="readDefaultLayout"
 		:validate="getWidgetLayoutValidationMessage"
 		placeholder="Comma-separated widget ids, e.g. recommendations,calendar,mail"
 		:rows="6" />

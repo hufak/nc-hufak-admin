@@ -24,6 +24,8 @@ function getJsonValidationMessage(value: string): string {
 
 const readApporder = (data: Record<string, unknown>) =>
 	typeof data.apporder === 'string' ? data.apporder : '';
+const readDefaultApporder = (data: Record<string, unknown>) =>
+	typeof data.defaultApporder === 'string' ? data.defaultApporder : '';
 </script>
 
 <template>
@@ -33,6 +35,7 @@ const readApporder = (data: Record<string, unknown>) =>
 		url="/apps/hufak/api/settings/apporder"
 		payload-key="apporder"
 		:read-value="readApporder"
+		:read-default-value="readDefaultApporder"
 		:validate="getJsonValidationMessage"
 		placeholder="Enter apporder JSON...">
 		<template #intro>

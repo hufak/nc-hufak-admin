@@ -118,7 +118,18 @@ const administratorRightLabels: Record<string, string> = {
 const administratorRightLabel = (right: string) => administratorRightLabels[right] || right.replace(/^can_/, '').replace(/_/g, ' ');
 const isAssignableRight = (right: string) => assignableRights.value.includes(right);
 const canDismissAdministrator = (administrator: TelegramAdministrator) => canManage.value && administrator.isEditable !== false && isAssignableRight('can_promote_members');
-const defaultAdministratorRights = () => Object.fromEntries(addAdministratorRights.value.map((right) => [right, right !== 'can_promote_members']));
+const defaultAdministratorRights = () => Object.fromEntries(addAdministratorRights.value.map((right) => [right, false]));
+const areGroupRightsEnabled = (rights: string[]) => rights.every((right) => newAdministratorRights.value[right] === true);
+const hasPartiallyEnabledGroupRights = (rights: string[]) => {
+	const selectedRights = rights.filter((right) => newAdministratorRights.value[right] === true).length;
+	return selectedRights > 0 && selectedRights < rights.length;
+};
+const setGroupRights = (rights: string[], enabled: boolean) => {
+	newAdministratorRights.value = {
+		...newAdministratorRights.value,
+		...Object.fromEntries(rights.map((right) => [right, enabled])),
+	};
+};
 
 function administratorName(administrator: TelegramAdministrator): string {
 	return [administrator.user?.first_name, administrator.user?.last_name].filter(Boolean).join(' ') || String(administrator.user?.id || 'Unknown');
@@ -470,12 +481,17 @@ onMounted(() => { void loadAdministrators(); });
 			<NcNoteCard v-if="candidateIsAdministrator" type="info" text="This user is already a group administrator. Their current settings are shown below and can be edited here." />
 			<NcTextField v-model="newAdministratorLabel" label="Public label" type="text" maxlength="16" :disabled="isAddingAdministrator || !candidatePreview?.user || candidateAdministrator?.isEditable === false" />
 			<NcCheckboxRadioSwitch v-model="newAdministratorIsAnonymous" :disabled="isAddingAdministrator || !candidatePreview?.user || candidateAdministrator?.isEditable === false">Post anonymously</NcCheckboxRadioSwitch>
-			<fieldset v-for="group in administratorRightGroups" :key="group.label" :style="rightGroupStyle">
-				<legend :style="rightGroupLegendStyle">{{ group.label }}</legend>
-				<div :style="styles.radioGroup">
-					<NcCheckboxRadioSwitch v-for="right in group.rights" :key="right" v-model="newAdministratorRights[right]" :disabled="isAddingAdministrator || !candidatePreview?.user || candidateAdministrator?.isEditable === false">{{ administratorRightLabel(right) }}</NcCheckboxRadioSwitch>
-				</div>
-			</fieldset>
+			<template v-for="group in administratorRightGroups" :key="group.label">
+				<fieldset v-if="group.rights.length > 1" :style="rightGroupStyle">
+					<legend :style="rightGroupLegendStyle">
+						<NcCheckboxRadioSwitch :model-value="areGroupRightsEnabled(group.rights)" :indeterminate="hasPartiallyEnabledGroupRights(group.rights)" :disabled="isAddingAdministrator || !candidatePreview?.user || candidateAdministrator?.isEditable === false" @update:model-value="setGroupRights(group.rights, Boolean($event))">{{ group.label }}</NcCheckboxRadioSwitch>
+					</legend>
+					<div :style="styles.radioGroup">
+						<NcCheckboxRadioSwitch v-for="right in group.rights" :key="right" v-model="newAdministratorRights[right]" :disabled="isAddingAdministrator || !candidatePreview?.user || candidateAdministrator?.isEditable === false">{{ administratorRightLabel(right) }}</NcCheckboxRadioSwitch>
+					</div>
+				</fieldset>
+				<NcCheckboxRadioSwitch v-else v-model="newAdministratorRights[group.rights[0]]" :disabled="isAddingAdministrator || !candidatePreview?.user || candidateAdministrator?.isEditable === false">{{ administratorRightLabel(group.rights[0]) }}</NcCheckboxRadioSwitch>
+			</template>
 			<template #actions>
 				<NcButton type="button" :disabled="isAddingAdministrator" @click="closeAddDialog">Cancel</NcButton>
 				<NcButton type="button" variant="primary" :disabled="!candidatePreview?.user || candidateAdministrator?.isEditable === false" :loading="isAddingAdministrator" @click="addAdministrator">{{ candidateIsAdministrator ? 'Save administrator' : 'Add administrator' }}</NcButton>

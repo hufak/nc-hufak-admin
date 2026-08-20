@@ -22,7 +22,7 @@ const ConfigureMail = defineAsyncComponent(() => import(/* webpackChunkName: "co
 const AccountOverview = defineAsyncComponent(() => import(/* webpackChunkName: "account-overview" */ './AccountOverview.vue'));
 const MailboxConfig = defineAsyncComponent(() => import(/* webpackChunkName: "mailbox-config" */ './MailboxConfig.vue'));
 const SignatureTemplateDefaults = defineAsyncComponent(() => import(/* webpackChunkName: "signature-template" */ './SignatureTemplateDefaults.vue'));
-const AccountInfoTemplate = defineAsyncComponent(() => import(/* webpackChunkName: "account-info-template" */ './NewAccountTemplate.vue'));
+const NewAccountInfoTemplate = defineAsyncComponent(() => import(/* webpackChunkName: "new-account-info-template" */ './NewAccountInfoTemplate.vue'));
 const AppOrderDefaults = defineAsyncComponent(() => import(/* webpackChunkName: "app-order" */ './AppOrderDefaults.vue'));
 const DashboardWidgetDefaults = defineAsyncComponent(() => import(/* webpackChunkName: "dashboard-widgets" */ './DashboardWidgetDefaults.vue'));
 const StudentStats = defineAsyncComponent(() => import(/* webpackChunkName: "student-stats-section" */ './StudentStats.vue'));
@@ -168,7 +168,7 @@ const openConfigureMailForUser = (uid: string) => {
 					@edit-mailbox="openConfigureMailForUser" />
 				<SignatureTemplateDefaults
 					v-else-if="currentSection === SECTION_KEYS.SIGNATURE_TEMPLATE" />
-				<AccountInfoTemplate
+				<NewAccountInfoTemplate
 					v-else-if="currentSection === SECTION_KEYS.ACCOUNT_INFO_TEMPLATE" />
 				<AppOrderDefaults v-else-if="currentSection === SECTION_KEYS.APP_ORDER" />
 				<DashboardWidgetDefaults

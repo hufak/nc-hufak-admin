@@ -17,12 +17,17 @@ echo "==> Fetching the latest commit of every submodule..."
 # only the top level is moved to its upstream tip: the nested ones stay at
 # whatever that new commit pins, which is the submodule repo's business
 git submodule update --remote --init
-git submodule update --init --recursive
+# Synchronize nested submodules from each top-level submodule's new commit.
+# Running `git submodule update` from the superproject here would reset the
+# top-level gitlink back to the pointer recorded in this repository.
+git submodule foreach --recursive 'git submodule update --init --recursive'
 
 echo "==> Staging the new pointers..."
 git config --file .gitmodules --get-regexp '^submodule\..*\.path$' \
 	| cut -d ' ' -f 2- \
-	| xargs -r git add --
+	| while IFS= read -r submodule_path; do
+		git add -- "$submodule_path"
+	done
 
 git submodule status --recursive
 
